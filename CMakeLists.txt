@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(ros_package_template)
+project(urGovernor)
 
 ## Use C++11
 add_definitions(-std=c++11)
@@ -116,7 +116,7 @@ if(CATKIN_ENABLE_TESTING)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 ## Add gtest based cpp test target and link libraries
 catkin_add_gtest(${PROJECT_NAME}-test
-  test/test_ros_package_template.cpp
+  test/test_urGovernor.cpp
   test/AlgorithmTest.cpp)
 endif()
 

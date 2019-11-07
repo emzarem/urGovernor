@@ -1,6 +1,6 @@
 #pragma once
 
-namespace ros_package_template {
+namespace urGovernor {
 
 /*!
  * Class containing the algorithmic part of the package.

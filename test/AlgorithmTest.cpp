@@ -1,4 +1,4 @@
-#include "ros_package_template/Algorithm.hpp"
+#include "urGovernor/Algorithm.hpp"
 
 // gtest
 #include <gtest/gtest.h>
@@ -6,7 +6,7 @@
 // STD
 #include <vector>
 
-using namespace ros_package_template;
+using namespace urGovernor;
 
 TEST(Algorithm, getWithoutSet)
 {

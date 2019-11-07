@@ -1,6 +1,6 @@
-#include "ros_package_template/Algorithm.hpp"
+#include "urGovernor/Algorithm.hpp"
 
-namespace ros_package_template {
+namespace urGovernor {
 
 Algorithm::Algorithm()
     : average_(0.0),

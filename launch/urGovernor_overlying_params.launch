@@ -12,13 +12,13 @@
        will be loaded. -->
 
   <!-- Default parameters. Note the usage of 'value', to avoid they can be wrongly changed. -->
-  <arg name="default_param_file" value="$(find ros_package_template)/config/default.yaml" />
+  <arg name="default_param_file" value="$(find urGovernor)/config/default.yaml" />
 
   <!-- User's parameters that can overly default ones: use default ones in case user does not specify them. -->
   <arg name="overlying_param_file" default="$(arg default_param_file)" />
 
   <!-- Launch ROS Package Template node. -->
-  <node pkg="ros_package_template" type="ros_package_template" name="ros_package_template" output="screen">
+  <node pkg="urGovernor" type="urGovernor" name="urGovernor" output="screen">
     <rosparam command="load" file="$(arg default_param_file)" />
     <!-- Overlay parameters if user specified them. They must be loaded after default parameters! -->
     <rosparam command="load" file="$(arg overlying_param_file)" />
