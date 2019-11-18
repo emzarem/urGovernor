@@ -12,6 +12,7 @@ find_package(catkin REQUIRED
   COMPONENTS
     roscpp
     sensor_msgs
+    urVision
 )
 
 ## Find system libraries
@@ -36,6 +37,7 @@ catkin_package(
   CATKIN_DEPENDS
     roscpp
     sensor_msgs
+    urVision
 #  DEPENDS
 #    Boost
 )
