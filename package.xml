@@ -13,4 +13,6 @@
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
   <depend>urVision</depend>
+  <depend>message_generation</depend>
+  <depend>message_runtime</depend>
 </package>

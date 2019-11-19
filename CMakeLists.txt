@@ -13,11 +13,27 @@ find_package(catkin REQUIRED
     roscpp
     sensor_msgs
     urVision
+    message_generation
 )
 
 ## Find system libraries
 #find_package(Eigen3 REQUIRED)
-#find_package(Boost REQUIRED)
+#find_package(Boost REQUIRED)\
+
+############################################
+## Message / Service / Action -- Definitions
+###########################################
+add_service_files(
+  DIRECTORY
+  srv
+  FILES
+  FetchWeed.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  urVision
+)
 
 ###################################
 ## catkin specific configuration ##
