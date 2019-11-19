@@ -63,7 +63,6 @@ add_library(${PROJECT_NAME}_core
 ## Declare cpp executables
 add_executable(${PROJECT_NAME}
   src/${PROJECT_NAME}_node.cpp
-  src/RosPackageTemplate.cpp
 )
 
 ## Add dependencies to exported targets, like ROS msgs or srvs
@@ -84,6 +83,22 @@ target_link_libraries(${PROJECT_NAME}
   ${PROJECT_NAME}_core
   ${catkin_LIBRARIES}
 )
+
+## Tracker Node ---------------------------------------
+add_executable(tracker_node
+  src/tracker_node.cpp
+  src/Tracker.cpp
+)
+target_link_libraries(tracker_node
+  ${catkin_LIBRARIES}
+)
+add_dependencies(tracker_node
+  urGovernor_generate_messages_cpp
+  ${catkin_EXPORTED_TARGETS}
+)
+
+
+
 
 #############
 ## Install ##
