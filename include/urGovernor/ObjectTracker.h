@@ -10,13 +10,45 @@
 #ifndef TRACKER_H
 #define TRACKER_H
 
+#include <map>
+#include <vector>
 
+/* Object
+ *      @brief Struct holding centroid of object to track
+ */
+struct Object {
+    int32_t x;
+    int32_t y;
+};
 
+/* ObjectID
+ *      @brief Object ID type used to track
+ */
+typedef uint32_t ObjectID;
+
+/* ObjectTracker
+ *      @brief Class to perform centroid tracking given bounding boxes
+ */
 class ObjectTracker {
     public:
-        ObjectTracker();
+        ObjectTracker(uint32_t max_dissapeared_frms = 40);
         ~ObjectTracker();
+        
+        void update(const std::vector<Object>& new_objs);
 
+    private:
+        ObjectID register_object(const Object& obj);
+        void deregister_object(const ObjectID id);
+        void cleanup_dissapeared();
+
+    private:
+        ObjectID m_next_id;
+        uint32_t m_max_dissapeared_frms;
+
+        std::map<ObjectID, Object> m_active_objects;
+        std::map<ObjectID, uint32_t> m_dissapeared;
+
+        std::vector<ObjectID> m_id_list;
 };
 
 #endif
