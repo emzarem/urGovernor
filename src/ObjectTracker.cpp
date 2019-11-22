@@ -62,84 +62,106 @@ ObjectTracker::~ObjectTracker()
  */
 void ObjectTracker::update(const std::vector<Object>& new_objs)
 {
-    /* 1. Calculate distance between each current point and each new point */
-    int32_t m = m_active_objects.size();
-    int32_t n = new_objs.size();
-    std::vector< std::vector<Distance> > dist_matrix(m, std::vector<Distance>(n));
-
-    for (int i = 0; i < m; i++)
+    if (new_objs.size() == 0) 
     {
-        for (int j = 0; j < n; j++) 
+        // If we didn't get any new objects, all are dissapeared
+        for (auto itr = m_dissapeared.begin(); itr != m_dissapeared.end(); itr++)
         {
-            Object crnt_obj = m_active_objects[m_id_list[i]];
-            dist_matrix[i][j] = euclidean_distance(crnt_obj, new_objs[j]);
+            m_dissapeared[itr->first]++;
         }
     }
 
-    /* 2. Sort by distance */  
-    // Keep track of indices -- new objs
-    // | 0 1 - - - - - n |
-    // | 0 1 - - - - - n |
-    // | - - - - - - - - |
-    // | - - - - - - - - |
-    // | 0 1 - - - - - n |
-    std::vector<std::vector<size_t> > sorted_ids(m, std::vector<size_t>(n));
-    for (int i = 0; i < m; i++)
-        std::iota(sorted_ids[i].begin(), sorted_ids[i].end(), 0);
-
-    // Keep track of indices -- active objs
-    // | 0 1 - - - - - m |
-    std::vector<size_t> active_obj_ids(m);
-    std::iota(active_obj_ids.begin(), active_obj_ids.end(), 0);
-
-    // Sort intra-row (find closest new object to each old object)
-    // | 0 1 - <---> - n |
-    // | 0 1 - <---> - n |
-    // | - - - <---> - - |
-    // | - - - <---> - - |
-    // | 0 1 - <---> - n |
-    for (int i = 0; i < m; i++)
+    else if (m_active_objects.size() == 0)
     {
-         std::sort(sorted_ids[i].begin(), sorted_ids[i].end(), 
-                [&dist_matrix, &i](const size_t& a, const size_t& b) -> bool
-                {
-                    return dist_matrix[i][a] > dist_matrix[i][b];
-                });
-    }
-    
-    // Sort the rows based on min distance in each row
-    // | 0 1 - <---> - m |
-    std::sort(active_obj_ids.begin(), active_obj_ids.end(), 
-            [&dist_matrix, &sorted_ids](const size_t& a, const size_t& b) -> bool
-            {
-                return dist_matrix[a][sorted_ids[a][0]] > dist_matrix[b][sorted_ids[b][0]];
-            });
-    
-    /* 3. Find matching objects */
-    std::map<size_t, int> used_cols;
-
-    // Loop over each active object
-    for (auto itr = active_obj_ids.begin(); itr != active_obj_ids.end(); itr++)
-    {
-        bool found_update = false;
-
-        // loop over each new object in the row 
-        for (auto sub_itr = sorted_ids[*itr].begin(); sub_itr != sorted_ids[*itr].end(); sub_itr++)
+        // If we don't have any current objects register all the new ones
+        for (auto itr = new_objs.begin(); itr != new_objs.end(); itr++)
         {
-            if (used_cols.count(*sub_itr) == 0)
+            register_object(*itr);
+        }
+    }
+
+    else
+    {
+        /* 1. Calculate distance between each current point and each new point */
+        int32_t m = m_active_objects.size();
+        int32_t n = new_objs.size();
+        std::vector< std::vector<Distance> > dist_matrix(m, std::vector<Distance>(n));
+
+        for (int i = 0; i < m; i++)
+        {
+            for (int j = 0; j < n; j++) 
             {
-                // We found our tracked object!
-                used_cols[*sub_itr] = 1; // update that we used this object
-                m_active_objects[m_id_list[*itr]] = new_objs[*sub_itr];
-                found_update = true;
-                break;
+                Object crnt_obj = m_active_objects[m_id_list[i]];
+                dist_matrix[i][j] = euclidean_distance(crnt_obj, new_objs[j]);
+            }
+        }
+
+        /* 2. Sort by distance */  
+        // Keep track of indices -- new objs
+        // | 0 1 - - - - - n |
+        // | 0 1 - - - - - n |
+        // | - - - - - - - - |
+        // | - - - - - - - - |
+        // | 0 1 - - - - - n |
+        std::vector<std::vector<size_t> > sorted_ids(m, std::vector<size_t>(n));
+        for (int i = 0; i < m; i++)
+            std::iota(sorted_ids[i].begin(), sorted_ids[i].end(), 0);
+
+        // Keep track of indices -- active objs
+        // | 0 1 - - - - - m |
+        std::vector<size_t> active_obj_ids(m);
+        std::iota(active_obj_ids.begin(), active_obj_ids.end(), 0);
+
+        // Sort intra-row (find closest new object to each old object)
+        // | 0 1 - <---> - n |
+        // | 0 1 - <---> - n |
+        // | - - - <---> - - |
+        // | - - - <---> - - |
+        // | 0 1 - <---> - n |
+        for (int i = 0; i < m; i++)
+        {
+             std::sort(sorted_ids[i].begin(), sorted_ids[i].end(), 
+                    [&dist_matrix, &i](const size_t& a, const size_t& b) -> bool
+                    {
+                        return dist_matrix[i][a] > dist_matrix[i][b];
+                    });
+        }
+        
+        // Sort the rows based on min distance in each row
+        // | 0 1 - <---> - m |
+        std::sort(active_obj_ids.begin(), active_obj_ids.end(), 
+                [&dist_matrix, &sorted_ids](const size_t& a, const size_t& b) -> bool
+                {
+                    return dist_matrix[a][sorted_ids[a][0]] > dist_matrix[b][sorted_ids[b][0]];
+                });
+        
+        /* 3. Find matching objects */
+        std::map<size_t, int> used_cols;
+
+        // Loop over each active object
+        for (auto itr = active_obj_ids.begin(); itr != active_obj_ids.end(); itr++)
+        {
+            bool found_update = false;
+
+            // loop over each new object in the row 
+            for (auto sub_itr = sorted_ids[*itr].begin(); sub_itr != sorted_ids[*itr].end(); sub_itr++)
+            {
+                if (used_cols.count(*sub_itr) == 0)
+                {
+                    // We found our tracked object!
+                    used_cols[*sub_itr] = 1; // update that we used this object
+                    m_active_objects[m_id_list[*itr]] = new_objs[*sub_itr];
+                    found_update = true;
+                    break;
+                }
+
             }
 
+            // If not updated its missing this frame
+            if (!found_update)
+                m_dissapeared[m_id_list[*itr]]++;
         }
 
-        // If not updated its missing this frame
-        if (!found_update)
-            m_dissapeared[m_id_list[*itr]]++;
     }
 
     /* 4. Update missing objects */
