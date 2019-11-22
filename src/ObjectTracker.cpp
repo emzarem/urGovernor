@@ -123,7 +123,7 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
              std::sort(sorted_ids[i].begin(), sorted_ids[i].end(), 
                     [&dist_matrix, &i](const size_t& a, const size_t& b) -> bool
                     {
-                        return dist_matrix[i][a] > dist_matrix[i][b];
+                        return dist_matrix[i][a] < dist_matrix[i][b];
                     });
         }
         
@@ -132,7 +132,7 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
         std::sort(active_obj_ids.begin(), active_obj_ids.end(), 
                 [&dist_matrix, &sorted_ids](const size_t& a, const size_t& b) -> bool
                 {
-                    return dist_matrix[a][sorted_ids[a][0]] > dist_matrix[b][sorted_ids[b][0]];
+                    return dist_matrix[a][sorted_ids[a][0]] < dist_matrix[b][sorted_ids[b][0]];
                 });
         
         /* 3. Find matching objects */
