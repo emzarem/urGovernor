@@ -73,7 +73,7 @@ include_directories(
 
 ## Declare a cpp library
 add_library(${PROJECT_NAME}_core
-   src/Algorithm.cpp
+   src/ObjectTracker.cpp
 )
 
 ## Declare cpp executables
@@ -150,9 +150,16 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 ## Add gtest based cpp test target and link libraries
 catkin_add_gtest(${PROJECT_NAME}-test
   test/test_urGovernor.cpp
-  test/AlgorithmTest.cpp)
+)
+catkin_add_gtest(ObjectTracker-test
+  test/ObjectTrackerTest.cpp
+)
 endif()
 
 if(TARGET ${PROJECT_NAME}-test)
   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME}_core)
+endif()
+
+if(TARGET ObjectTracker-test)
+  target_link_libraries(ObjectTracker-test ${PROJECT_NAME}_core)
 endif()

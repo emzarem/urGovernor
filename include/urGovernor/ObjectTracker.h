@@ -10,6 +10,8 @@
 #ifndef TRACKER_H
 #define TRACKER_H
 
+#include <gtest/gtest.h>
+
 #include <map>
 #include <vector>
 
@@ -37,6 +39,11 @@ class ObjectTracker {
         void update(const std::vector<Object>& new_objs);
 
     private:
+        FRIEND_TEST(ObjectTrackerTest, EmptyStart);
+        FRIEND_TEST(ObjectTrackerTest, EmptyUpdate);
+        FRIEND_TEST(ObjectTrackerTest, CloseUpdates);
+        FRIEND_TEST(ObjectTrackerTest, DissapearedObjects);
+
         ObjectID register_object(const Object& obj);
         void deregister_object(const ObjectID id);
         void cleanup_dissapeared();
