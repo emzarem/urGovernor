@@ -189,7 +189,10 @@ void ObjectTracker::deregister_object(const ObjectID id)
     for (auto itr = m_id_list.begin(); itr != m_id_list.end(); itr++)
     {
         if (*itr == id)
+        {
             m_id_list.erase(itr);
+            break;
+        }
     }
 }
 
