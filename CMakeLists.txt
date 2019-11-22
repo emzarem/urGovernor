@@ -100,10 +100,10 @@ target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
 
-## Tracker Node ---------------------------------------
+## ObjectTracker Node ---------------------------------------
 add_executable(tracker_node
   src/tracker_node.cpp
-  src/Tracker.cpp
+  src/ObjectTracker.cpp
 )
 target_link_libraries(tracker_node
   ${catkin_LIBRARIES}

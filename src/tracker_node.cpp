@@ -1,12 +1,12 @@
 #include <ros/ros.h>
 
-#include "urGovernor/Tracker.h"
+#include "urGovernor/ObjectTracker.h"
 #include "urGovernor/FetchWeed.h"
 
 #include "urVision/weedData.h"
 
 
-static const Tracker* p_tracker;
+static const ObjectTracker* p_tracker;
 
 bool fetch_weed(urGovernor::FetchWeed::Request &req, urGovernor::FetchWeed::Response &res)
 {
@@ -21,10 +21,10 @@ void new_weed_callback(const urVision::weedData::ConstPtr& msg)
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "Tracker_Node");
+    ros::init(argc, argv, "ObjectTracker_Node");
     ros::NodeHandle n;
 
-    p_tracker = new Tracker();
+    p_tracker = new ObjectTracker();
 
     ros::ServiceServer service = n.advertiseService("fetch_weed", fetch_weed);
     ros::Subscriber sub = n.subscribe("new_weeds", 1000, new_weed_callback);

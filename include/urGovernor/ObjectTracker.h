@@ -1,4 +1,4 @@
-/* @file Tracker.h
+/* @file ObjectTracker.h
  *      @author emzarem
  *      
  *      This class handles the following functionality:
@@ -12,10 +12,10 @@
 
 
 
-class Tracker {
+class ObjectTracker {
     public:
-        Tracker();
-        ~Tracker();
+        ObjectTracker();
+        ~ObjectTracker();
 
 };
 

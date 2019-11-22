@@ -1,4 +1,4 @@
-/* @file Tracker.cpp
+/* @file ObjectTracker.cpp
  *      @author emzarem
  *      
  *      This class handles the following functionality:
@@ -7,13 +7,13 @@
  *              -> Chooses the next weed to target
  */
 
-#include "urGovernor/Tracker.h"
+#include "urGovernor/ObjectTracker.h"
 
-Tracker::Tracker()
+ObjectTracker::ObjectTracker()
 {
 }
 
-Tracker::~Tracker()
+ObjectTracker::~ObjectTracker()
 {
 
 }
