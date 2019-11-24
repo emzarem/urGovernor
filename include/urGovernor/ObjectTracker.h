@@ -21,7 +21,13 @@
 struct Object {
     int32_t x;
     int32_t y;
+
 };
+
+bool operator==(const Object& lhs, const Object& rhs)
+{
+    return lhs.x == rhs.x && lhs.y == rhs.y;
+}
 
 /* ObjectID
  *      @brief Object ID type used to track
@@ -30,20 +36,22 @@ typedef uint32_t ObjectID;
 
 /* ObjectTracker
  *      @brief Class to perform centroid tracking given bounding boxes
+ *
+ *      @note Constructor accepts both number of missing frames before removing object
+ *            and 
  */
 class ObjectTracker {
     public:
-        ObjectTracker(uint32_t max_dissapeared_frms = 40);
+        ObjectTracker(uint32_t max_dissapeared_frms = 1);
+        //TODO add option to specify comparator to keep list of objects sorted
+        //ObjectTracker(uint32_t max_dissapeared_frms = 1, bool (*f)(const Object&, const Object&));
         ~ObjectTracker();
         
+        std::vector<Object> active_objects();
+        size_t object_count();
         void update(const std::vector<Object>& new_objs);
 
     private:
-        FRIEND_TEST(ObjectTrackerTest, EmptyStart);
-        FRIEND_TEST(ObjectTrackerTest, EmptyUpdate);
-        FRIEND_TEST(ObjectTrackerTest, CloseUpdates);
-        FRIEND_TEST(ObjectTrackerTest, DissapearedObjects);
-
         ObjectID register_object(const Object& obj);
         void deregister_object(const ObjectID id);
         void cleanup_dissapeared();

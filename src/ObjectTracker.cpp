@@ -43,6 +43,29 @@ ObjectTracker::ObjectTracker(uint32_t max_dissapeared_frms) :
 ObjectTracker::~ObjectTracker()
 {}
 
+/* active_objects
+ *      @brief returns vector of active objects
+ */
+std::vector<Object> ObjectTracker::active_objects()
+{
+    std::vector<Object> to_ret;
+
+    for (auto itr = m_active_objects.begin(); itr != m_active_objects.end(); itr++)
+    {
+        to_ret.push_back(itr->second);
+    }
+
+    return to_ret;
+}
+
+/* object_count
+ *      @brief returns number of currently tracked objects
+ */
+size_t ObjectTracker::object_count()
+{
+    return m_active_objects.size();
+}
+
 /* update
  *      @brief updates the active list of objects
  *
