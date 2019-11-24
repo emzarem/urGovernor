@@ -26,12 +26,14 @@ class ObjectTrackerTest : public ::testing::Test {
              *
              *    each frame the points move in +'ve y by y_Speed
              */
+            p_tracker = new ObjectTracker();
+
             vector<Object> ini_objs = {
-                {0,0,1},
-                {2,2,1},
-                {4,4,1},
+                {0,6,1},
                 {6,6,1},
-                {0,6,1}
+                {4,4,1},
+                {2,2,1},
+                {0,0,1}
             };
 
             for (int i = 0; i <  num_frames; i++)
@@ -46,7 +48,12 @@ class ObjectTrackerTest : public ::testing::Test {
             }
         }
 
-        ObjectTracker tracker;
+        void TearDown() override
+        {
+            delete p_tracker;
+        }
+
+        ObjectTracker* p_tracker;
         vector<vector<Object> > object_lists;
         int32_t frame = 0;
         const int32_t y_speed = 1;
@@ -60,10 +67,10 @@ class ObjectTrackerTest : public ::testing::Test {
  */
 TEST_F(ObjectTrackerTest, EmptyStart)
 {
-    ASSERT_EQ(tracker.object_count(), 0);
+    ASSERT_EQ(p_tracker->object_count(), 0);
 
-    tracker.update(object_lists[frame]);
-    ASSERT_EQ(tracker.active_objects(), object_lists[frame]);
+    p_tracker->update(object_lists[frame]);
+    ASSERT_EQ(p_tracker->active_objects(), object_lists[frame]);
 }
 
 /* EmptyUpdate
@@ -72,9 +79,9 @@ TEST_F(ObjectTrackerTest, EmptyStart)
 TEST_F(ObjectTrackerTest, EmptyUpdate)
 {
     vector<Object> empty_list;
-    tracker.update(object_lists[frame]);
-    tracker.update(empty_list);
-    ASSERT_EQ(tracker.active_objects(), object_lists[frame]);
+    p_tracker->update(object_lists[frame]);
+    p_tracker->update(empty_list);
+    ASSERT_EQ(p_tracker->active_objects(), object_lists[frame]);
 }
 
 /* GenericUpdate
@@ -88,11 +95,11 @@ TEST_F(ObjectTrackerTest, GenericUpdate)
     // Send all updates up until a point goes off screen
     while(curr_size == curr_list.size())
     {
-        tracker.update(curr_list);
+        p_tracker->update(curr_list);
         curr_list = object_lists[frame++];
     }
 
-    ASSERT_EQ(tracker.active_objects(), object_lists[frame - 2]);
+    ASSERT_EQ(p_tracker->active_objects(), object_lists[frame - 2]);
 }
 
 /* DissapearedObjects
@@ -107,18 +114,18 @@ TEST_F(ObjectTrackerTest, DissapearedObjects)
     // Send all updates up until a point goes off screen
     while(curr_size == curr_list.size())
     {
-        tracker.update(curr_list);
+        p_tracker->update(curr_list);
         curr_list = object_lists[frame++];
     }
     
     // Next frame has a point go off screen, should still track for 1 frame
-    tracker.update(object_lists[frame]);
-    ASSERT_EQ(tracker.object_count(), object_lists[frame - 2].size());
+    p_tracker->update(object_lists[frame]);
+    ASSERT_EQ(p_tracker->object_count(), object_lists[frame - 2].size());
     frame++;
 
     // Object should be removed by next frame
-    tracker.update(object_lists[frame]);
-    ASSERT_EQ(tracker.object_count(), object_lists[frame - 2].size());
+    p_tracker->update(object_lists[frame]);
+    ASSERT_EQ(p_tracker->object_count(), object_lists[frame - 2].size());
 }
 
 int main(int argc, char **argv)

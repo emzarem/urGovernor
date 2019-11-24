@@ -29,6 +29,13 @@ bool operator==(const Object& lhs, const Object& rhs)
     return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
 }
 
+bool operator>(const Object& lhs, const Object& rhs)
+{
+    // Currently using z value as basis for sorting (use for size)
+    return lhs.z > rhs.z;
+}
+
+
 /* ObjectID
  *      @brief Object ID type used to track
  */

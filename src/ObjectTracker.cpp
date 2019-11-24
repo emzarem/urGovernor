@@ -197,9 +197,15 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
  */
 ObjectID ObjectTracker::register_object(const Object& obj)
 {
+    // Insertion sort on IDs
+    auto id_itr = m_id_list.begin();
+    while (id_itr != m_id_list.end() && m_active_objects[*id_itr] > obj) {id_itr++;}
+    m_id_list.insert(id_itr, m_next_id);
+    
+
     m_active_objects[m_next_id] = obj;
     m_dissapeared[m_next_id] = 0;
-    m_id_list.push_back(m_next_id);
+
     return m_next_id++;
 }
 
