@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -28,11 +29,11 @@ class ObjectTrackerTest : public ::testing::Test {
              */
             p_tracker = new ObjectTracker();
 
-            vector<Object> ini_objs = {
-                {0,6,1},
-                {6,6,1},
-                {4,4,1},
-                {2,2,1},
+            vector<Object> ini_objs = { // NOTE listed in descending z-order so it matches top()
+                {0,6,5},
+                {6,6,4},
+                {4,4,3},
+                {2,2,2},
                 {0,0,1}
             };
 
@@ -126,6 +127,30 @@ TEST_F(ObjectTrackerTest, DissapearedObjects)
     // Object should be removed by next frame
     p_tracker->update(object_lists[frame]);
     ASSERT_EQ(p_tracker->object_count(), object_lists[frame - 2].size());
+}
+
+/* GetTop
+ *      @brief checks that the objects are ordered
+ */
+TEST_F(ObjectTrackerTest, GetTop)
+{
+    vector<Object> unsorted_vec =
+    {
+        {0, 0, 1},
+        {2, 2, 5},
+        {4, 4, 3}
+    };
+
+    vector<Object> sorted_vec = unsorted_vec;
+    sort(sorted_vec.begin(), sorted_vec.end(), greater<Object>());
+
+    p_tracker->update(unsorted_vec);
+    Object top_obj;
+    
+    ASSERT_TRUE(p_tracker->top(top_obj));
+    ASSERT_EQ(top_obj, sorted_vec[0]);
+
+    ASSERT_EQ(p_tracker->active_objects(), sorted_vec);
 }
 
 int main(int argc, char **argv)

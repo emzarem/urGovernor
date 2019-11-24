@@ -24,12 +24,12 @@ struct Object {
     int32_t z;
 };
 
-bool operator==(const Object& lhs, const Object& rhs)
+inline bool operator==(const Object& lhs, const Object& rhs)
 {
     return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
 }
 
-bool operator>(const Object& lhs, const Object& rhs)
+inline bool operator>(const Object& lhs, const Object& rhs)
 {
     // Currently using z value as basis for sorting (use for size)
     return lhs.z > rhs.z;
@@ -50,12 +50,16 @@ typedef uint32_t ObjectID;
 class ObjectTracker {
     public:
         ObjectTracker(uint32_t max_dissapeared_frms = 1);
-        //TODO add option to specify comparator to keep list of objects sorted
-        //ObjectTracker(uint32_t max_dissapeared_frms = 1, bool (*f)(const Object&, const Object&));
         ~ObjectTracker();
-        
+       
+        // Getters
         std::vector<Object> active_objects();
         size_t object_count();
+        
+        // Sorted operations
+        bool top(Object& to_ret);
+
+        // Modifiers
         void update(const std::vector<Object>& new_objs);
 
     private:

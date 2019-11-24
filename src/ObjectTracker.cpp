@@ -51,9 +51,9 @@ std::vector<Object> ObjectTracker::active_objects()
 {
     std::vector<Object> to_ret;
 
-    for (auto itr = m_active_objects.begin(); itr != m_active_objects.end(); itr++)
+    for (auto id: m_id_list)
     {
-        to_ret.push_back(itr->second);
+        to_ret.push_back(m_active_objects[id]);
     }
 
     return to_ret;
@@ -65,6 +65,21 @@ std::vector<Object> ObjectTracker::active_objects()
 size_t ObjectTracker::object_count()
 {
     return m_active_objects.size();
+}
+
+/* top
+ *      @brief returns the largest Object (as defined by operator>)
+ *
+ *      @param  to_ret  : The top object is returned through this
+ *      @returns   bool : True if top object exists, false otherwise
+ */
+bool ObjectTracker::top(Object& to_ret)
+{
+    if (object_count() == 0)
+        return false;
+
+    to_ret = m_active_objects[m_id_list[0]];
+    return true;
 }
 
 /* update
