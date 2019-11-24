@@ -24,7 +24,8 @@ static Distance euclidean_distance(const Object& a, const Object& b)
 {
     Distance delt_x = a.x - b.x;
     Distance delt_y = a.y - b.y;
-    return sqrt(delt_x*delt_x + delt_y*delt_y);
+    Distance delt_z = a.z - b.z;
+    return sqrt(delt_x*delt_x + delt_y*delt_y + delt_z*delt_z);
 }
 
 /* ObjectTracker

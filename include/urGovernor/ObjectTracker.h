@@ -21,12 +21,12 @@
 struct Object {
     int32_t x;
     int32_t y;
-
+    int32_t z;
 };
 
 bool operator==(const Object& lhs, const Object& rhs)
 {
-    return lhs.x == rhs.x && lhs.y == rhs.y;
+    return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
 }
 
 /* ObjectID

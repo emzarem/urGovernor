@@ -27,11 +27,11 @@ class ObjectTrackerTest : public ::testing::Test {
              *    each frame the points move in +'ve y by y_Speed
              */
             vector<Object> ini_objs = {
-                {0,0},
-                {2,2},
-                {4,4},
-                {6,6},
-                {0,6}
+                {0,0,1},
+                {2,2,1},
+                {4,4,1},
+                {6,6,1},
+                {0,6,1}
             };
 
             for (int i = 0; i <  num_frames; i++)
