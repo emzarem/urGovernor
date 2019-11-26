@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <map>
+#include <sstream>
 #include <vector>
 
 /* Object
@@ -22,6 +23,16 @@ struct Object {
     int32_t x;
     int32_t y;
     int32_t z;
+
+    operator std::string() const
+    {
+        std::ostringstream oss;
+        oss << "Object " << this << ":" << std::endl
+            << "    x: " << this->x << std::endl
+            << "    y: " << this->y << std::endl
+            << "    z: " << this->z << std::endl;
+        return oss.str();
+    }
 };
 
 inline bool operator==(const Object& lhs, const Object& rhs)
@@ -40,6 +51,11 @@ inline bool operator>(const Object& lhs, const Object& rhs)
  *      @brief Object ID type used to track
  */
 typedef uint32_t ObjectID;
+/* Distance
+ *      @brief type used for centroid distances
+ */
+typedef float Distance;
+
 
 /* ObjectTracker
  *      @brief Class to perform centroid tracking given bounding boxes
@@ -68,6 +84,8 @@ class ObjectTracker {
         void cleanup_dissapeared();
 
     private:
+        static constexpr Distance dist_tol = 15;
+
         ObjectID m_next_id;
         uint32_t m_max_dissapeared_frms;
 

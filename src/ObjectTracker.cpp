@@ -12,11 +12,6 @@
 #include <numeric>      // iota
 #include <math.h>       // sqrt
 
-/* Distance
- *      @brief type used for centroid distances
- */
-typedef float Distance;
-
 /* euclidean_distance
  *      @brief Calculates euclidean distance between two objects
  */
@@ -185,7 +180,7 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
             // loop over each new object in the row 
             for (auto sub_itr = sorted_ids[*itr].begin(); sub_itr != sorted_ids[*itr].end(); sub_itr++)
             {
-                if (used_cols.count(*sub_itr) == 0)
+                if (used_cols.count(*sub_itr) == 0 && dist_matrix[0][*sub_itr] < dist_tol)
                 {
                     // We found our tracked object!
                     used_cols[*sub_itr] = 1; // update that we used this object
@@ -199,6 +194,15 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
             // If not updated its missing this frame
             if (!found_update)
                 m_dissapeared[m_id_list[*itr]]++;
+        }
+
+        // Add any new objects in the scene
+        for (auto x : sorted_ids[0])
+        {
+           if (used_cols.count(x) == 0)
+           {
+               register_object(new_objs[x]);
+           }
         }
 
     }

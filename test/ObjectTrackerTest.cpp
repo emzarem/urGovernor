@@ -3,10 +3,28 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <sstream>
 #include <utility>
 #include <vector>
 
 using namespace std;
+
+/* vec_to_string
+ *      @brief returns a string representation
+ *      @note the type T must have string() defined
+ */
+template<typename T>
+string vec_to_string(std::vector<T> v)
+{
+    ostringstream oss;
+    oss << "[" << endl;
+    for (auto x : v) 
+    {
+        oss << " " << string(x) << endl;
+    }
+    oss << "]" << endl;
+    return oss.str();
+}
 
 /* ObjectTrackerTest
  *      Fixture for objecttracker
@@ -17,6 +35,9 @@ class ObjectTrackerTest : public ::testing::Test {
         {
             /* Initial points
              *     --> x
+             *    
+             *    o(0, -4)
+             *
              *    _____________________
              * |  |o(0,0)        
              * V  |    o(2,2)
@@ -28,6 +49,8 @@ class ObjectTrackerTest : public ::testing::Test {
              *    each frame the points move in +'ve y by y_Speed
              */
             p_tracker = new ObjectTracker();
+            frame = 0;
+            frame_dissapeared = 0;
 
             vector<Object> ini_objs = { // NOTE listed in descending z-order so it matches top()
                 {0,6,5},
@@ -39,12 +62,19 @@ class ObjectTrackerTest : public ::testing::Test {
 
             for (int i = 0; i <  num_frames; i++)
             {
+                if(i == 2)
+                    ini_objs.push_back({0,0,1});
+
                 object_lists.push_back(ini_objs);
                 for (int j = 0; j < ini_objs.size(); j++)
                 {
                     ini_objs[j].y += y_speed;
                     if(ini_objs[j].y > y_max)
+                    {
                         ini_objs.erase(ini_objs.begin() + j--);
+                        if (frame_dissapeared == 0)
+                            frame_dissapeared = i;
+                    }
                 }
             }
         }
@@ -56,7 +86,8 @@ class ObjectTrackerTest : public ::testing::Test {
 
         ObjectTracker* p_tracker;
         vector<vector<Object> > object_lists;
-        int32_t frame = 0;
+        int32_t frame;
+        int32_t frame_dissapeared; // frame where points go off screen
         const int32_t y_speed = 1;
         const int32_t y_max = 10;
         const int32_t num_frames = 10;
@@ -109,24 +140,26 @@ TEST_F(ObjectTrackerTest, GenericUpdate)
  */
 TEST_F(ObjectTrackerTest, DissapearedObjects)
 {
-    vector<Object> curr_list = object_lists[frame];
-    size_t curr_size = curr_list.size();
+     vector<Object> curr_list = object_lists[frame];
 
-    // Send all updates up until a point goes off screen
-    while(curr_size == curr_list.size())
-    {
-        p_tracker->update(curr_list);
-        curr_list = object_lists[frame++];
-    }
-    
-    // Next frame has a point go off screen, should still track for 1 frame
-    p_tracker->update(object_lists[frame]);
-    ASSERT_EQ(p_tracker->object_count(), object_lists[frame - 2].size());
-    frame++;
+     // Send all updates up until a point goes off screen
+     while(frame <= frame_dissapeared)
+     {
+         p_tracker->update(curr_list);
+         curr_list = object_lists[frame++];
+     }
+     // Next frame has two points go off screen, should still track for 1 frame
+     p_tracker->update(object_lists[frame]);
+     ASSERT_EQ(p_tracker->object_count(), object_lists[frame].size() + 2 )
+         << "p_tracker: " << vec_to_string(p_tracker->active_objects())
+                 << endl << "expected: " << vec_to_string(object_lists[frame]) << endl;
+     frame++;
 
-    // Object should be removed by next frame
-    p_tracker->update(object_lists[frame]);
-    ASSERT_EQ(p_tracker->object_count(), object_lists[frame - 2].size());
+     // Object should be removed by next frame
+     p_tracker->update(object_lists[frame]);
+     ASSERT_EQ(p_tracker->object_count(), object_lists[frame].size())
+          << "p_tracker: " << vec_to_string(p_tracker->active_objects())
+                 << endl << "expected: " << vec_to_string(object_lists[frame]) << endl;
 }
 
 /* GetTop
