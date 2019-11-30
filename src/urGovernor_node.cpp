@@ -10,8 +10,11 @@
 
 static ObjectTracker* p_tracker;
 
+// Parameters to read from configs
 std::string weedPublisherName;
 std::string fetchWeedServiceName;
+Distance distanceTolerance;
+int maxDisappearedFrms;
 
 static inline Object weed_to_object(urVision::weedData& weed)
 {
@@ -35,7 +38,7 @@ bool fetch_weed(urGovernor::FetchWeed::Request &req, urGovernor::FetchWeed::Resp
 
 void new_weed_callback(const urVision::weedDataArray::ConstPtr& msg)
 {
-    ROS_INFO("Weed array received.");
+    ROS_DEBUG("Weed array received.");
     
     std::vector<Object> new_objs;
 
@@ -55,6 +58,9 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("weed_data_publisher", weedPublisherName)) return false;
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
 
+    if (!nodeHandle.getParam("max_disappeared_frames", maxDisappearedFrms)) return false;
+    if (!nodeHandle.getParam("distance_tolerance", distanceTolerance)) return false;
+
     return true;
 }
 
@@ -69,7 +75,7 @@ int main(int argc, char** argv)
         ros::requestShutdown();
     }
 
-    p_tracker = new ObjectTracker();
+    p_tracker = new ObjectTracker(distanceTolerance, maxDisappearedFrms);
 
     // Subscriber to the weed publisher (from urVision)
     ros::Subscriber sub = nodeHandle.subscribe(weedPublisherName, 1000, new_weed_callback);

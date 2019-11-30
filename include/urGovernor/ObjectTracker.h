@@ -65,7 +65,7 @@ typedef float Distance;
  */
 class ObjectTracker {
     public:
-        ObjectTracker(uint32_t max_dissapeared_frms = 1);
+        ObjectTracker(Distance distTol, uint32_t max_dissapeared_frms = 1);
         ~ObjectTracker();
        
         // Getters
@@ -84,7 +84,7 @@ class ObjectTracker {
         void cleanup_dissapeared();
 
     private:
-        static constexpr Distance dist_tol = 15;
+        Distance m_dist_tol;
 
         ObjectID m_next_id;
         uint32_t m_max_dissapeared_frms;

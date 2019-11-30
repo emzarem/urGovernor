@@ -12,14 +12,16 @@
 #include <numeric>      // iota
 #include <math.h>       // sqrt
 
+#include <ros/ros.h>
+
 /* euclidean_distance
  *      @brief Calculates euclidean distance between two objects
  */
 static Distance euclidean_distance(const Object& a, const Object& b)
 {
-    Distance delt_x = a.x - b.x;
-    Distance delt_y = a.y - b.y;
-    Distance delt_z = a.z - b.z;
+    Distance delt_x = (Distance)a.x - (Distance)b.x;
+    Distance delt_y = (Distance)a.y - (Distance)b.y;
+    Distance delt_z = (Distance)a.z - (Distance)b.z;
     return sqrt(delt_x*delt_x + delt_y*delt_y + delt_z*delt_z);
 }
 
@@ -29,8 +31,8 @@ static Distance euclidean_distance(const Object& a, const Object& b)
  *      @param max_dissapeared_frms : 
  *              max number of missed frames before object removed
  */
-ObjectTracker::ObjectTracker(uint32_t max_dissapeared_frms) :
-    m_max_dissapeared_frms(max_dissapeared_frms)
+ObjectTracker::ObjectTracker(Distance distTol, uint32_t max_dissapeared_frms) :
+    m_dist_tol(distTol), m_max_dissapeared_frms(max_dissapeared_frms)
 {}
 
 /* ~ObjectTracker
@@ -110,6 +112,7 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
         // If we don't have any current objects register all the new ones
         for (auto itr = new_objs.begin(); itr != new_objs.end(); itr++)
         {
+            ROS_INFO("Tracker -- no current objects, registering object @ (x,y,z) : (%i, %i, %i)", itr->x, itr->y, itr->z);
             register_object(*itr);
         }
     }
@@ -180,7 +183,7 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
             // loop over each new object in the row 
             for (auto sub_itr = sorted_ids[*itr].begin(); sub_itr != sorted_ids[*itr].end(); sub_itr++)
             {
-                if (used_cols.count(*sub_itr) == 0 && dist_matrix[*itr][*sub_itr] < dist_tol)
+                if (used_cols.count(*sub_itr) == 0 && dist_matrix[*itr][*sub_itr] < m_dist_tol)
                 {
                     // We found our tracked object!
                     used_cols[*sub_itr] = 1; // update that we used this object
@@ -201,6 +204,8 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
         {
            if (used_cols.count(x) == 0)
            {
+               ROS_INFO("Tracker -- registering new object in this scene @ (x,y,z) : (%i, %i, %i)", 
+                            new_objs[x].x, new_objs[x].y, new_objs[x].z);
                register_object(new_objs[x]);
            }
         }
