@@ -14,32 +14,27 @@ static inline Object weed_to_object(urVision::weedData& weed)
     return {weed.x_cm, weed.y_cm, weed.size_cm};
 }
 
-static urVision::weedData object_to_weed(Object& obj)
+static void object_to_weed(Object& obj, urVision::weedData& weed)
 {
-    urVision::weedData weed;
     weed.x_cm = obj.x;
     weed.y_cm = obj.y;
     weed.size_cm = obj.z;
-    return weed;
 }
 
 bool fetch_weed(urGovernor::FetchWeed::Request &req, urGovernor::FetchWeed::Response &res)
 {
-    ROS_INFO("Caller - %x", req.caller);
+    ROS_INFO("Fetch Weed: Caller - %x", req.caller);
     Object top_obj;
     p_tracker->top(top_obj);
-    res.weed = object_to_weed(top_obj);
+    object_to_weed(top_obj, res.weed);
 }
 
 void new_weed_callback(const urVision::weedDataArray::ConstPtr& msg)
 {
-    ROS_INFO("Weed array received.");
-    
     std::vector<Object> new_objs;
 
     for (auto weed : msg->weeds)
     {
-        ROS_INFO("New weed: x- %d    y- %d     t- %f      size- %d \n", weed.x_cm, weed.y_cm, weed.time, weed.size_cm);
         new_objs.push_back(weed_to_object(weed));
     }
 
