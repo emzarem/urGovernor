@@ -100,21 +100,6 @@ target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
 
-## ObjectTracker Node ---------------------------------------
-add_executable(tracker_node
-  src/tracker_node.cpp
-  src/ObjectTracker.cpp
-)
-target_link_libraries(tracker_node
-  ${catkin_LIBRARIES}
-)
-add_dependencies(tracker_node
-  urGovernor_generate_messages_cpp
-  ${catkin_EXPORTED_TARGETS}
-)
-
-
-
 
 #############
 ## Install ##

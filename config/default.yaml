@@ -1,1 +1,3 @@
 subscriber_topic: /temperature
+
+fetch_weed_service: fetch_weed_service
