@@ -180,7 +180,7 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
             // loop over each new object in the row 
             for (auto sub_itr = sorted_ids[*itr].begin(); sub_itr != sorted_ids[*itr].end(); sub_itr++)
             {
-                if (used_cols.count(*sub_itr) == 0 && dist_matrix[0][*sub_itr] < dist_tol)
+                if (used_cols.count(*sub_itr) == 0 && dist_matrix[*itr][*sub_itr] < dist_tol)
                 {
                     // We found our tracked object!
                     used_cols[*sub_itr] = 1; // update that we used this object
