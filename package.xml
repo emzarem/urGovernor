@@ -2,12 +2,9 @@
 <package format="2">
   <name>urGovernor</name>
   <version>0.1.0</version>
-  <description>A template for ROS packages.</description>
-  <maintainer email="pfankhauser@anybotics.com">Peter Fankhauser</maintainer>
+  <description>Control package for UpRoot System.</description>
+  <maintainer email="efmurphy@uwaterloo.ca">Eric Murphy-Zaremba</maintainer>
   <license>BSD</license>
-  <url type="website">https://github.com/ethz-asl/ros_best_practices</url>
-  <url type="bugtracker">https://github.com/ethz-asl/ros_best_practices/issues</url>
-  <author email="pfankhauser@anybotics.com">Peter Fankhauser</author>
   
   <buildtool_depend>catkin</buildtool_depend>
   
@@ -15,4 +12,7 @@
   <!--<depend>boost</depend>-->
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
+  <depend>urVision</depend>
+  <depend>message_generation</depend>
+  <depend>message_runtime</depend>
 </package>

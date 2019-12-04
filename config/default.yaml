@@ -1,1 +1,7 @@
-subscriber_topic: /temperature
+
+fetch_weed_service: fetch_weed_service
+
+# Max allowable disappeared frames
+max_disappeared_frames: 2
+# Distance tolerance for tracking between frames (in cm)
+distance_tolerance: 0.5

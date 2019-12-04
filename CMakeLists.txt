@@ -12,11 +12,28 @@ find_package(catkin REQUIRED
   COMPONENTS
     roscpp
     sensor_msgs
+    urVision
+    message_generation
 )
 
 ## Find system libraries
 #find_package(Eigen3 REQUIRED)
-#find_package(Boost REQUIRED)
+#find_package(Boost REQUIRED)\
+
+############################################
+## Message / Service / Action -- Definitions
+###########################################
+add_service_files(
+  DIRECTORY
+  srv
+  FILES
+  FetchWeed.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  urVision
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -36,6 +53,7 @@ catkin_package(
   CATKIN_DEPENDS
     roscpp
     sensor_msgs
+    urVision
 #  DEPENDS
 #    Boost
 )
@@ -55,13 +73,12 @@ include_directories(
 
 ## Declare a cpp library
 add_library(${PROJECT_NAME}_core
-   src/Algorithm.cpp
+   src/ObjectTracker.cpp
 )
 
 ## Declare cpp executables
 add_executable(${PROJECT_NAME}
   src/${PROJECT_NAME}_node.cpp
-  src/RosPackageTemplate.cpp
 )
 
 ## Add dependencies to exported targets, like ROS msgs or srvs
@@ -82,6 +99,7 @@ target_link_libraries(${PROJECT_NAME}
   ${PROJECT_NAME}_core
   ${catkin_LIBRARIES}
 )
+
 
 #############
 ## Install ##
@@ -117,9 +135,16 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 ## Add gtest based cpp test target and link libraries
 catkin_add_gtest(${PROJECT_NAME}-test
   test/test_urGovernor.cpp
-  test/AlgorithmTest.cpp)
+)
+catkin_add_gtest(ObjectTracker-test
+  test/ObjectTrackerTest.cpp
+)
 endif()
 
 if(TARGET ${PROJECT_NAME}-test)
   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME}_core)
+endif()
+
+if(TARGET ObjectTracker-test)
+  target_link_libraries(ObjectTracker-test ${PROJECT_NAME}_core)
 endif()
