@@ -1,0 +1,7 @@
+
+# All dimensions in mm
+arm_length: 300
+rod_length: 450
+# I gotta figure out what these are
+bass_tri: 75
+platform_tri: 50

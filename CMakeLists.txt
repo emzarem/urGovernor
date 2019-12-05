@@ -66,6 +66,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   include
+  include/kinematics
   ${catkin_INCLUDE_DIRS}
 #  ${EIGEN3_INCLUDE_DIR}
 #  ${Boost_INCLUDE_DIRS}
@@ -85,6 +86,8 @@ add_executable(${PROJECT_NAME}
 add_dependencies(${PROJECT_NAME}_core
   ${catkin_EXPORTED_TARGETS}
 )
+## Add dependencies to exported targets, like ROS msgs or srvs
+# Do we need to do this for kinematics?
 
 add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
@@ -100,6 +103,35 @@ target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
 
+## For controller_node
+
+## Declare the kinematics library
+add_library(kinematics
+    src/kinematics/DeltaInverseKinematics.cpp
+    src/kinematics/DeltaKinematics.cpp
+)
+
+## Declare cpp executables
+add_executable(controller
+  src/controller_node.cpp
+)
+
+## Add dependencies to exported targets, like ROS msgs or srvs
+# Do we need to do this for kinematics?
+# add_dependencies(kinematics
+#   ${catkin_EXPORTED_TARGETS}
+# )
+
+add_dependencies(controller
+  kinematics
+  ${catkin_EXPORTED_TARGETS}
+)
+
+# Link libraries
+target_link_libraries(controller
+  kinematics
+  ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##

@@ -1,0 +1,2 @@
+# Query rate of the controller to make service requests for new weeds [Hz]
+controller_query_rate: 1

@@ -1,5 +1,5 @@
 
-fetch_weed_service: fetch_weed_service
+fetch_weed_service: /urGovernor/fetch_weed_service
 
 # Max allowable disappeared frames
 max_disappeared_frames: 2

@@ -3,7 +3,7 @@
   <!-- Launch urGovernor node -->
   <node pkg="urGovernor" type="urGovernor" name="urGovernor" output="screen">
  	<rosparam command="load" file="$(find urVision)/config/default.yaml" />
-    <rosparam command="load" file="$(find urGovernor)/config/default.yaml" />
+    <rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
   </node>
 
 </launch>
