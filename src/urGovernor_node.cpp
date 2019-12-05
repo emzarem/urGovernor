@@ -28,12 +28,20 @@ static void object_to_weed(Object& obj, urVision::weedData& weed)
     weed.size_cm = obj.z;
 }
 
+// Fetch weed service
 bool fetch_weed(urGovernor::FetchWeed::Request &req, urGovernor::FetchWeed::Response &res)
 {
-    ROS_INFO("Fetch Weed: Caller - %x", req.caller);
     Object top_obj;
-    p_tracker->top(top_obj);
-    object_to_weed(top_obj, res.weed);
+    if (!p_tracker->top(top_obj))
+    {
+        ROS_INFO("fetch_weed_service: No current weeds available");
+        return false;
+    }
+    else
+    {
+        object_to_weed(top_obj, res.weed);
+        return true;
+    }
 }
 
 void new_weed_callback(const urVision::weedDataArray::ConstPtr& msg)

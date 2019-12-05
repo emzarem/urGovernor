@@ -75,8 +75,17 @@ bool ObjectTracker::top(Object& to_ret)
     if (object_count() == 0)
         return false;
 
-    to_ret = m_active_objects[m_id_list[0]];
-    return true;
+    for (auto itr = m_uprooted.begin(); itr != m_uprooted.end(); itr++)
+    {
+        if (0 == itr->second)
+        {
+            itr->second = 1;
+            to_ret = m_active_objects[itr->first];
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /* update
@@ -228,6 +237,7 @@ ObjectID ObjectTracker::register_object(const Object& obj)
     
 
     m_active_objects[m_next_id] = obj;
+    m_uprooted[m_next_id] = 0;
     m_dissapeared[m_next_id] = 0;
 
     return m_next_id++;
@@ -239,6 +249,7 @@ ObjectID ObjectTracker::register_object(const Object& obj)
 void ObjectTracker::deregister_object(const ObjectID id)
 {
     m_active_objects.erase(id);
+    m_uprooted.erase(id);
     m_dissapeared.erase(id);
     for (auto itr = m_id_list.begin(); itr != m_id_list.end(); itr++)
     {

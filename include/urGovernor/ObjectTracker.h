@@ -90,6 +90,8 @@ class ObjectTracker {
         uint32_t m_max_dissapeared_frms;
 
         std::map<ObjectID, Object> m_active_objects;
+        std::map<ObjectID, uint32_t> m_uprooted;
+
         std::map<ObjectID, uint32_t> m_dissapeared;
 
         std::vector<ObjectID> m_id_list;
