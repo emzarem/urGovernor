@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 
-#include "DeltaInverseKinematics.h"
+// For kinematics
+#include "deltaRobot.h"
 
 // Srv and msg types
 #include <urGovernor/FetchWeed.h>
@@ -37,12 +38,6 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
     if (!nodeHandle.getParam("controller_query_rate", queryRate)) return false;
 
-    if (!nodeHandle.getParam("bicep_length", armLength)) return false;
-    if (!nodeHandle.getParam("forearm_length", rodLength)) return false;
-    if (!nodeHandle.getParam("base_platform_radius", platformRadius)) return false;
-    if (!nodeHandle.getParam("end_effector_platform_radius", endEffectorRadius)) return false;
-
-    if (!nodeHandle.getParam("base_to_floor", baseToFloor)) return false;
     if (!nodeHandle.getParam("soil_offset", soilOffset)) return false;
     
     return true;
@@ -69,17 +64,14 @@ int main(int argc, char** argv)
     int bassTri = 2*platformRadius*COS_30_DEG;
     int platformTri = 2*endEffectorRadius*COS_30_DEG;
 
-    // Setup (Inverse) Kinematics instance
-    DeltaInverseKinematics deltaKinematics(&angleB1, &angleB2, &angleB3, armLength, rodLength, bassTri, platformTri);
-
-    // TODO: Used to set angle limits for the motor
-    // void setLimits(double upperB1, double upperB2, double upperB3, double lowerB1, double lowerB2, double lowerB3)
-
-    // TODO: Offsets not really working, just set to 0 right now
-    deltaKinematics.setOffsets(0, 0, 0);
+    /* Initializing Kinematics */
+    // Set tool offset (tool id == 0, x, y, z )
+    robot_tool_offset(0, 0, 0, 0);
+    // Default deltarobot setup
+    deltarobot_setup();
 
     // Main loop
-    ros::Rate loopRate(queryRate); // 10 hz
+    ros::Rate loopRate(queryRate);
     while (ros::ok())
     {
         srv.request.caller = 1;
@@ -91,19 +83,22 @@ int main(int argc, char** argv)
             /* Create coordinates in the Delta Arm Reference  */
             // All coordinates in mm
             // TODO: need to do some conversion here (arm is centered on (0,0) in the middle)
-            int x_coord = (int32_t)srv.response.weed.x_cm*10;
-            int y_coord = (int32_t)srv.response.weed.y_cm*10;
-            // z = 0 is at the base (z = is always negative)
-            int z_coord = soilOffset - baseToFloor;
+            int x_coord = (int32_t)srv.response.weed.x_cm;
+            int y_coord = (int32_t)srv.response.weed.y_cm;
+            // z = 0 IS AT THE GROUND (z = is always positive)
+            int z_coord = soilOffset;
             
             /* Calculate angles for Delta arm */
-            deltaKinematics.set(30, 30, z_coord);
+            robot_position((float)x_coord, (float)x_coord, (float)z_coord); 
 
-            int angle1Deg = int(angleB1 * 180 / 3.14);
-            int angle2Deg = int(angleB2 * 180 / 3.14);
-            int angle3Deg = int(angleB3 * 180 / 3.14);
+            // Get the resulting angles
+            struct ArmAngles angles = getArmAngles();
+            int angle1Deg = angles.angleB1;
+            int angle2Deg = angles.angleB2;
+            int angle3Deg = angles.angleB3;
 
-            ROS_INFO("Set Delta Angles to : (%i, %i, %i)", angle1Deg, angle2Deg, angle3Deg);
+            ROS_INFO("Delta for coords (%i, %i, %i) [cm] -> (%i, %i, %i) [degrees]",
+                        x_coord, y_coord, z_coord, angle1Deg, angle2Deg, angle3Deg);
 
             // Send angles to HAL
             // printf("%i,%i,%i,%i\n", angle1Deg, angle2Deg, angle3Deg, relativeAngleFlag);

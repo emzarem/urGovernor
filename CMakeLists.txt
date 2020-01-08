@@ -107,8 +107,7 @@ target_link_libraries(${PROJECT_NAME}
 
 ## Declare the kinematics library
 add_library(kinematics
-    src/kinematics/DeltaInverseKinematics.cpp
-    src/kinematics/DeltaKinematics.cpp
+    src/kinematics/deltaRobot.cpp
 )
 
 ## Declare cpp executables
@@ -130,6 +129,22 @@ add_dependencies(controller
 # Link libraries
 target_link_libraries(controller
   kinematics
+  ${catkin_LIBRARIES}
+)
+
+## For deltaTest_node
+
+## Declare cpp executables
+add_executable(deltaTest
+  src/deltaTest_node.cpp
+)
+
+add_dependencies(deltaTest
+  ${catkin_EXPORTED_TARGETS}
+)
+
+# Link libraries
+target_link_libraries(deltaTest
   ${catkin_LIBRARIES}
 )
 
