@@ -28,7 +28,7 @@ static void object_to_weed(Object& obj, urVision::weedData& weed)
     weed.size_cm = obj.z;
 }
 
-// Fetch weed service
+// Fetch weed service (called by controller)
 bool fetch_weed(urGovernor::FetchWeed::Request &req, urGovernor::FetchWeed::Response &res)
 {
     Object top_obj;

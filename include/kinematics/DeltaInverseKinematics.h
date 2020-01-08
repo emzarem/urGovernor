@@ -1,3 +1,6 @@
+/* Delta Kinematics code soured from
+* https://github.com/tinkersprojects/Delta-Kinematics-Library
+*/
 
 #ifndef DeltaInverseKinematics_h
 #define DeltaInverseKinematics_h
@@ -19,14 +22,12 @@ class DeltaInverseKinematics
         // SET 
         void set(double x,double y,double z);
         void setOffsets(double X, double Y, double Z);
-        void setLimits(double upperX, double upperY, double upperZ, double lowerX, double lowerY, double lowerZ);
+        void setLimits(double upperB1, double upperB2, double upperB3, double lowerB1, double lowerB2, double lowerB3);
         
         // TEST
         bool test(double x,double y,double z);
         
         void calulate(double x,double y,double z, double *B1a,double *B2a,double *B3a,double *B1b,double *B2b,double *B3b);
-        double straightArms(double base,double platform,double armL1, double armL2);
-
         
     private:
         double *B1angle;

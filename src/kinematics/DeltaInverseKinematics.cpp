@@ -44,6 +44,7 @@ void DeltaInverseKinematics::setOffsets(double X, double Y, double Z)
   offsetY = Y;
   offsetZ = Z;
 }
+
 void DeltaInverseKinematics::setLimits(double upperB1, double upperB2, double upperB3, double lowerB1, double lowerB2, double lowerB3)
 {
   LimitsUpperB1 = upperB1;
@@ -59,7 +60,7 @@ void DeltaInverseKinematics::set(double x,double y,double z)
 {
   x += offsetX;
   y += offsetY;
-  z += offsetY;
+  z += offsetZ;
 
   double B1a;
   double B2a;
@@ -194,10 +195,4 @@ void DeltaInverseKinematics::calulate(double x,double y,double z, double *B1a,do
 	*B2b = TH2b ;
 	*B3a = TH3a ;
 	*B3b = TH3b ;
-}
-
-double DeltaInverseKinematics::straightArms(double base,double platform,double armL1, double armL2)
-{
-
-  return 0;
 }

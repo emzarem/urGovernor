@@ -6,21 +6,30 @@
 #include <urGovernor/FetchWeed.h>
 #include <urVision/weedDataArray.h>
 
+const float COS_30_DEG = 0.866025;
+
 std::string fetchWeedServiceName;
 float queryRate;
 
-// Kinematics Parameters
+/* START Kinematics Parameters */
+int relativeAngleFlag = false;
+
+// Bicep angles (in radians)
 double angleB1;
 double angleB2;
 double angleB3;
 
-// All parameters in mm !
-double armLength;
-double rodLength;
-double bassTri;
-double platformTri;
+// Delta Arm dimensions
+// All parameters in mm!
+double armLength = 0;
+double rodLength = 0;
+double platformRadius = 0;
+double endEffectorRadius = 0;
 
-const double heightOffGround = 50;
+double baseToFloor = 0;
+int soilOffset = 0;
+
+/* END Kinematics Parameters */
 
 // General parameters for this node
 bool readGeneralParameters(ros::NodeHandle nodeHandle)
@@ -28,11 +37,14 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
     if (!nodeHandle.getParam("controller_query_rate", queryRate)) return false;
 
-    if (!nodeHandle.getParam("arm_length", armLength)) return false;
-    if (!nodeHandle.getParam("rod_length", rodLength)) return false;
-    if (!nodeHandle.getParam("bass_tri", bassTri)) return false;
-    if (!nodeHandle.getParam("platform_tri", platformTri)) return false;
+    if (!nodeHandle.getParam("bicep_length", armLength)) return false;
+    if (!nodeHandle.getParam("forearm_length", rodLength)) return false;
+    if (!nodeHandle.getParam("base_platform_radius", platformRadius)) return false;
+    if (!nodeHandle.getParam("end_effector_platform_radius", endEffectorRadius)) return false;
 
+    if (!nodeHandle.getParam("base_to_floor", baseToFloor)) return false;
+    if (!nodeHandle.getParam("soil_offset", soilOffset)) return false;
+    
     return true;
 }
 
@@ -53,14 +65,18 @@ int main(int argc, char** argv)
     ros::service::waitForService(fetchWeedServiceName);
     urGovernor::FetchWeed srv;
 
-    // Setup Kinematics
+    // Convert radii to equivalent equilateral triangle side lengths
+    int bassTri = 2*platformRadius*COS_30_DEG;
+    int platformTri = 2*endEffectorRadius*COS_30_DEG;
+
+    // Setup (Inverse) Kinematics instance
     DeltaInverseKinematics deltaKinematics(&angleB1, &angleB2, &angleB3, armLength, rodLength, bassTri, platformTri);
 
-    // TODO: Set Offsets and limits
-    // void setOffsets(double X, double Y, double Z);
-    // This fuctions is used to set the Offsets of X, Y and Z.
-    // void setLimits(double upperX, double upperY, double upperZ, double lowerX, double lowerY, double lowerZ);
-    // This fuctions is used to set the angle limits of each motor.
+    // TODO: Used to set angle limits for the motor
+    // void setLimits(double upperB1, double upperB2, double upperB3, double lowerB1, double lowerB2, double lowerB3)
+
+    // TODO: Offsets not really working, just set to 0 right now
+    deltaKinematics.setOffsets(0, 0, 0);
 
     // Main loop
     ros::Rate loopRate(queryRate); // 10 hz
@@ -72,11 +88,25 @@ int main(int argc, char** argv)
         {
             ROS_INFO("CONTROLLER -- got weed at (%i, %i)", (int32_t)srv.response.weed.x_cm, (int32_t)srv.response.weed.y_cm);
 
-            deltaKinematics.set((int32_t)srv.response.weed.x_cm*10, (int32_t)srv.response.weed.y_cm*10, heightOffGround);  
-            ROS_INFO("Set Delta Angles to : (%i, %i, %i)", int(angleB1 * 180 / 3.14), int(angleB2 * 180 / 3.14), int(angleB3 * 180 / 3.14));
+            /* Create coordinates in the Delta Arm Reference  */
+            // All coordinates in mm
+            // TODO: need to do some conversion here (arm is centered on (0,0) in the middle)
+            int x_coord = (int32_t)srv.response.weed.x_cm*10;
+            int y_coord = (int32_t)srv.response.weed.y_cm*10;
+            // z = 0 is at the base (z = is always negative)
+            int z_coord = soilOffset - baseToFloor;
+            
+            /* Calculate angles for Delta arm */
+            deltaKinematics.set(30, 30, z_coord);
+
+            int angle1Deg = int(angleB1 * 180 / 3.14);
+            int angle2Deg = int(angleB2 * 180 / 3.14);
+            int angle3Deg = int(angleB3 * 180 / 3.14);
+
+            ROS_INFO("Set Delta Angles to : (%i, %i, %i)", angle1Deg, angle2Deg, angle3Deg);
 
             // Send angles to HAL
-            // Serial.println(String(angleB1)+","+String(angleB2* 180 / 3.14)+","+String(angleB3* 180 / 3.14));
+            // printf("%i,%i,%i,%i\n", angle1Deg, angle2Deg, angle3Deg, relativeAngleFlag);
         }
         else
         {

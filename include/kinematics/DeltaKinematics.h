@@ -1,3 +1,6 @@
+/* Delta Kinematics code soured from
+* https://github.com/tinkersprojects/Delta-Kinematics-Library
+*/
 
 #ifndef DeltaKinematics_h
 #define DeltaKinematics_h

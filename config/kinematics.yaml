@@ -1,7 +1,16 @@
 
 # All dimensions in mm
-arm_length: 300
-rod_length: 450
-# I gotta figure out what these are
-bass_tri: 75
-platform_tri: 50
+# Upper joint
+bicep_length: 300
+# Lower joint
+forearm_length: 450
+
+# These will be used to calculate equivalent equilateral triangle
+# side lengths: Sb, Sp = 2*radius*cos(30 degrees)
+base_platform_radius: 75
+end_effector_platform_radius: 50
+
+# Keep this constant (from design specs)
+base_to_floor: 550
+# Change this depending on how far in / to the soil we awant to go
+soil_offset: 50
