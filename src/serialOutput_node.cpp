@@ -26,13 +26,16 @@ bool serialOutput(urGovernor::SerialOutput::Request &req, urGovernor::SerialOutp
 {
     std::string msg = req.command;
 
+    // TODO: Add in some error checking here on the serial port.
+
     ROS_INFO_STREAM("Writing to serial port: " << msg);
     
+    msg += "\n";
     // Send over serial
-    // ser.write(msg);
+    ser.write(msg);
     res.status = 0;
 
-    return false;
+    return true;
 }
 
 int main(int argc, char** argv)
@@ -47,25 +50,29 @@ int main(int argc, char** argv)
     }
 
     // Setting up serial ...
-    // try
-    // {
-    //     ser.setPort("/dev/ttyTHS1");
-    //     ser.setBaudrate(115200);
-    //     serial::Timeout to = serial::Timeout::simpleTimeout(1000);
-    //     ser.setTimeout(to);
-    //     ser.open();
-    // }
-    // catch (serial::IOException& e)
-    // {
-    //     ROS_ERROR("Unable to open port ");
-    //     return -1;
-    // }
+    try
+    {
+        ser.setPort("/dev/ttyTHS1");
+        ser.setBaudrate(115200);
+	    ser.setBytesize(serial::eightbits);
+	    ser.setFlowcontrol(serial::flowcontrol_none);
+	    ser.setParity(serial::parity_none);
+	    ser.setStopbits(serial::stopbits_one);
+        serial::Timeout to = serial::Timeout::simpleTimeout(1000);
+        ser.setTimeout(to);
+        ser.open();
+    }
+    catch (serial::IOException& e)
+    {
+        ROS_ERROR("Unable to open port ");
+        return -1;
+    }
 
-    // if(ser.isOpen()){
-    //     ROS_INFO("Serial Port initialized");
-    // }else{
-    //     return -1;
-    // }
+    if(ser.isOpen()){
+        ROS_INFO("Serial Port initialized");
+    }else{
+        return -1;
+    }
 
     // Service to write to serial
     ros::ServiceServer service = nodeHandle.advertiseService(serialServiceName, serialOutput);
