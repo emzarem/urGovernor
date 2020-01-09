@@ -44,7 +44,6 @@ bool fetch_weed(urGovernor::FetchWeed::Request &req, urGovernor::FetchWeed::Resp
     }
     else
     {
-        printf("%i\n", testIndex);
         object_to_weed(tests[testIndex], res.weed);
         testIndex++;
         return true;

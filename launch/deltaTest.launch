@@ -1,4 +1,9 @@
 <launch>
+	<!-- Launch serialOutput node -->
+	<node pkg="urGovernor" type="serialOutput" name="serialOutput" output="screen">
+		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
+	</node>
+
 	<!-- Launch urGovernor node -->
 	<node pkg="urGovernor" type="deltaTest" name="deltaTest" output="screen">
 		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />

@@ -15,4 +15,7 @@
   <depend>urVision</depend>
   <depend>message_generation</depend>
   <depend>message_runtime</depend>
+
+  <depend>serial</depend>
+  
 </package>

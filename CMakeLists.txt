@@ -12,6 +12,7 @@ find_package(catkin REQUIRED
   COMPONENTS
     roscpp
     sensor_msgs
+    serial
     urVision
     message_generation
 )
@@ -28,6 +29,7 @@ add_service_files(
   srv
   FILES
   FetchWeed.srv
+  SerialOutput.srv
 )
 
 generate_messages(
@@ -53,6 +55,7 @@ catkin_package(
   CATKIN_DEPENDS
     roscpp
     sensor_msgs
+    serial
     urVision
 #  DEPENDS
 #    Boost
@@ -145,6 +148,17 @@ add_dependencies(deltaTest
 
 # Link libraries
 target_link_libraries(deltaTest
+  ${catkin_LIBRARIES}
+)
+
+## Node for processing serial output
+add_executable(serialOutput src/serialOutput_node.cpp)
+
+add_dependencies(serialOutput
+  ${catkin_EXPORTED_TARGETS}
+)
+
+target_link_libraries(serialOutput
   ${catkin_LIBRARIES}
 )
 

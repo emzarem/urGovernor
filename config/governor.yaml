@@ -1,6 +1,8 @@
 
 fetch_weed_service: /urGovernor/fetch_weed_service
 
+serial_output_service: /urGovernor/serial_output_service
+
 # Max allowable disappeared frames
 max_disappeared_frames: 2
 # Distance tolerance for tracking between frames (in cm)
