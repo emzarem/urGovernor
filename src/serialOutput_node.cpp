@@ -9,6 +9,8 @@ using namespace std;
 
 // Parameters to read from configs
 std::string serialServiceName;
+std::string serialPort;
+int serialBaudRate;
 
 // Serial output instance
 serial::Serial ser;
@@ -17,6 +19,8 @@ serial::Serial ser;
 bool readGeneralParameters(ros::NodeHandle nodeHandle)
 {
     if (!nodeHandle.getParam("serial_output_service", serialServiceName)) return false;
+    if (!nodeHandle.getParam("serial_port", serialPort)) return false;
+    if (!nodeHandle.getParam("serial_baud_rate", serialBaudRate)) return false;
 
     return true;
 }
@@ -52,8 +56,8 @@ int main(int argc, char** argv)
     // Setting up serial ...
     try
     {
-        ser.setPort("/dev/ttyTHS1");
-        ser.setBaudrate(115200);
+        ser.setPort(serialPort);
+        ser.setBaudrate(serialBaudRate);
 	    ser.setBytesize(serial::eightbits);
 	    ser.setFlowcontrol(serial::flowcontrol_none);
 	    ser.setParity(serial::parity_none);

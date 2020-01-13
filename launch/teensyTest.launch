@@ -1,0 +1,12 @@
+<launch>
+	<!-- Launch serialOutput node -->
+	<node pkg="urGovernor" type="serialOutput" name="serialOutput" output="screen">
+		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
+	</node>
+
+	<!-- Launch serialOutput node -->
+	<node pkg="urGovernor" type="testTeensy" name="testTeensy" output="screen">
+		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
+	</node>
+
+</launch>
