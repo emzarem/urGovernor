@@ -70,6 +70,7 @@ catkin_package(
 include_directories(
   include
   include/kinematics
+  include/shared
   ${catkin_INCLUDE_DIRS}
 #  ${EIGEN3_INCLUDE_DIR}
 #  ${Boost_INCLUDE_DIRS}
@@ -118,6 +119,7 @@ add_executable(controller
   src/controller_node.cpp
 )
 
+
 ## Add dependencies to exported targets, like ROS msgs or srvs
 # Do we need to do this for kinematics?
 # add_dependencies(kinematics
@@ -161,6 +163,20 @@ add_dependencies(serialOutput
 target_link_libraries(serialOutput
   ${catkin_LIBRARIES}
 )
+
+## For testing serial
+add_executable(testTeensy
+    src/testTeensy_node.cpp
+)
+
+add_dependencies(testTeensy
+  ${catkin_EXPORTED_TARGETS}
+)
+
+target_link_libraries(testTeensy
+  ${catkin_LIBRARIES}
+)
+
 
 #############
 ## Install ##

@@ -2,6 +2,9 @@
 
 #include <sstream>
 
+// Shared lib
+#include "SerialPacket.h"
+
 // For kinematics
 #include "deltaRobot.h"
 
@@ -113,10 +116,14 @@ int main(int argc, char** argv)
             ROS_INFO("Delta for coords (%i, %i, %i) [cm] -> (%i, %i, %i) [degrees]",
                         x_coord, y_coord, z_coord, angle1Deg, angle2Deg, angle3Deg);
 
-            std::ostringstream ss;
-            ss << angle1Deg << "," << angle2Deg << "," << angle3Deg;
+            //std::ostringstream ss;
+            //ss << angle1Deg << "," << angle2Deg << "," << angle3Deg;
+            SerialUtils::CmdMsg msg = {relativeAngleFlag, angle1Deg, angle2Deg, angle3Deg};
+            std::vector<char> buff;
+            SerialUtils::pack(buff, msg);
 
-            serialSrv.request.command = ss.str();
+            serialSrv.request.command = std::string(buff.begin(), buff.end());
+
             // Send angles to HAL (via calling the serial client)
             if (!serialClient.call(serialSrv))
             {
