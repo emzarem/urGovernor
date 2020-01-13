@@ -1,0 +1,3 @@
+[submodule "include/shared"]
+	path = include/shared
+	url = https://github.com/emzarem/urShare.git
