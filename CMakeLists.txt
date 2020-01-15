@@ -29,7 +29,8 @@ add_service_files(
   srv
   FILES
   FetchWeed.srv
-  SerialOutput.srv
+  SerialWrite.srv
+  SerialRead.srv
 )
 
 generate_messages(

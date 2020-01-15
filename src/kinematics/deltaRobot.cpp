@@ -36,6 +36,16 @@ const int reverse = 1;
 // METHODS
 //------------------------------------------------------------------------------
 
+// Interface from controller_node to kinematics
+int getArmAngles(int* angle1Deg, int* angle2Deg, int* angle3Deg)
+{
+  *angle1Deg = (int)robot.arms[0].angle;
+  *angle2Deg = (int)robot.arms[1].angle;
+  *angle3Deg = (int)robot.arms[2].angle;
+
+  return true;
+}
+
 /**
   * finds angle of dy/dx as a value from 0...2PI
   * @return the angle
@@ -57,16 +67,6 @@ void robot_position(float npx,float npy,float npz) {
 
   // update kinematics (find angles)
   update_ik();
-}
-
-struct ArmAngles getArmAngles() {
-  struct ArmAngles returnAngles;
-
-  returnAngles.angleB1 = (int)robot.arms[0].angle;
-  returnAngles.angleB2 = (int)robot.arms[1].angle;
-  returnAngles.angleB3 = (int)robot.arms[2].angle;
-
-  return returnAngles;
 }
 
 /**

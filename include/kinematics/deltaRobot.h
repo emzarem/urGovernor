@@ -21,17 +21,11 @@ void update_elbows();
 void update_shoulder_angles();
 void robot_tool_offset(int axis,float x,float y,float z);
 Vector3 robot_get_end_plus_offset();
-struct ArmAngles getArmAngles();
+int getArmAngles(int* angle1Deg, int* angle2Deg, int* angle3Deg);
 
 //------------------------------------------------------------------------------
 // STRUCTS
 //------------------------------------------------------------------------------
-
-struct ArmAngles {
-  int angleB1;
-  int angleB2;
-  int angleB3;
-};
 
 struct Joint {
   Vector3 pos;

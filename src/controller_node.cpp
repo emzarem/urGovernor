@@ -1,7 +1,5 @@
 #include <ros/ros.h>
 
-#include <sstream>
-
 // Shared lib
 #include "SerialPacket.h"
 
@@ -11,35 +9,26 @@
 // Srv and msg types
 #include <urGovernor/FetchWeed.h>
 #include <urVision/weedDataArray.h>
-#include <urGovernor/SerialOutput.h>
-
-const float COS_30_DEG = 0.866025;
+#include <urGovernor/SerialWrite.h>
+#include <urGovernor/SerialRead.h>
 
 // Parameters to read from configs
 std::string fetchWeedServiceName;
 float queryRate;
 
-std::string serialServiceName;
+std::string serialServiceWriteName;
+std::string serialServiceReadName;
 
-/* START Kinematics Parameters */
-int relativeAngleFlag = false;
+const int relativeAngleFlag = false;
 
-// Bicep angles (in radians)
-double angleB1;
-double angleB2;
-double angleB3;
-
-// Delta Arm dimensions
-// All parameters in mm!
-double armLength = 0;
-double rodLength = 0;
-double platformRadius = 0;
-double endEffectorRadius = 0;
-
-double baseToFloor = 0;
 int soilOffset = 0;
 
-/* END Kinematics Parameters */
+// Time to actuate end-effector
+double endEffectorTime = 0;
+
+// Connections to Serial interface services
+ros::ServiceClient serialWriteClient;
+ros::ServiceClient serialReadClient;
 
 // General parameters for this node
 bool readGeneralParameters(ros::NodeHandle nodeHandle)
@@ -47,12 +36,68 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
     if (!nodeHandle.getParam("controller_query_rate", queryRate)) return false;
 
+    if (!nodeHandle.getParam("end_effector_time_s", endEffectorTime)) return false;
+
     if (!nodeHandle.getParam("soil_offset", soilOffset)) return false;
 
-    if (!nodeHandle.getParam("serial_output_service", serialServiceName)) return false;
-
+    if (!nodeHandle.getParam("serial_output_service", serialServiceWriteName)) return false;
+    if (!nodeHandle.getParam("serial_input_service", serialServiceReadName)) return false;
     
     return true;
+}
+
+/* 
+ * This is the main blocking call to set the arm position to the angles specified 
+ */
+bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
+{
+    urGovernor::SerialWrite serialWrite;
+    urGovernor::SerialRead serialRead;   
+    SerialUtils::CmdMsg msg = {0};
+    std::vector<char> buff;
+
+    msg.is_relative = relativeAngleFlag;
+    msg.m1_angle = angle1Deg;
+    msg.m2_angle = angle2Deg;
+    msg.m3_angle = angle3Deg;
+    
+    SerialUtils::pack(buff, msg);
+
+    serialWrite.request.command = std::string(buff.begin(), buff.end());
+
+    // Send angles to HAL (via calling the serial WRITE client)
+    if (serialWriteClient.call(serialWrite))
+    {
+        // Wait for arm done
+        // This is done by calling the serial READ client
+        // This should block until we get a CmdMsg FROM the serial line
+        if (serialReadClient.call(serialRead))
+        {
+            std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
+            // Unpack response from read
+            SerialUtils::unpack(v, msg);
+
+            // This should indicate that we are done
+            if (msg.motors_done)
+            {
+                return 1;
+            }
+            else 
+            {
+                ROS_ERROR("Motors did not return with (motors_done == true)");
+            }
+        }
+        else
+        {
+            ROS_ERROR("Reading back from serial was NOT successful.");
+        }
+    }
+    else
+    {
+        ROS_ERROR("Serial write to set motors was NOT successful.");
+    }
+    
+    return false;
 }
 
 int main(int argc, char** argv)
@@ -67,18 +112,16 @@ int main(int argc, char** argv)
         ros::requestShutdown();
     }
 
+    serialWriteClient = nh.serviceClient<urGovernor::SerialWrite>(serialServiceWriteName);
+    ros::service::waitForService(serialServiceWriteName);
+
+    serialReadClient = nh.serviceClient<urGovernor::SerialRead>(serialServiceReadName);
+    ros::service::waitForService(serialServiceReadName);
+
     // Subscribe to service from governor
     ros::ServiceClient fetchWeedClient = nh.serviceClient<urGovernor::FetchWeed>(fetchWeedServiceName);
     ros::service::waitForService(fetchWeedServiceName);
     urGovernor::FetchWeed fetchWeedSrv;
-
-    ros::ServiceClient serialClient = nh.serviceClient<urGovernor::SerialOutput>(serialServiceName);
-    ros::service::waitForService(serialServiceName);
-    urGovernor::SerialOutput serialSrv;
-
-    // Convert radii to equivalent equilateral triangle side lengths
-    int bassTri = 2*platformRadius*COS_30_DEG;
-    int platformTri = 2*endEffectorRadius*COS_30_DEG;
 
     /* Initializing Kinematics */
     // Set tool offset (tool id == 0, x, y, z )
@@ -86,7 +129,9 @@ int main(int argc, char** argv)
     // Default deltarobot setup
     deltarobot_setup();
 
-    // Main loop
+    /* 
+     * Main loop for controller
+     */
     ros::Rate loopRate(queryRate);
     while (ros::ok())
     {
@@ -107,32 +152,42 @@ int main(int argc, char** argv)
             /* Calculate angles for Delta arm */
             robot_position((float)x_coord, (float)x_coord, (float)z_coord); 
 
-            // Get the resulting angles
-            struct ArmAngles angles = getArmAngles();
-            int angle1Deg = angles.angleB1;
-            int angle2Deg = angles.angleB2;
-            int angle3Deg = angles.angleB3;
+            int angle1Deg,angle2Deg,angle3Deg;
 
-            ROS_INFO("Delta for coords (%i, %i, %i) [cm] -> (%i, %i, %i) [degrees]",
-                        x_coord, y_coord, z_coord, angle1Deg, angle2Deg, angle3Deg);
-
-            //std::ostringstream ss;
-            //ss << angle1Deg << "," << angle2Deg << "," << angle3Deg;
-            SerialUtils::CmdMsg msg = {relativeAngleFlag, angle1Deg, angle2Deg, angle3Deg};
-            std::vector<char> buff;
-            SerialUtils::pack(buff, msg);
-
-            serialSrv.request.command = std::string(buff.begin(), buff.end());
-
-            // Send angles to HAL (via calling the serial client)
-            if (!serialClient.call(serialSrv))
+            // Get the resulting angles from kinematics
+            if (getArmAngles(&angle1Deg, &angle2Deg, &angle3Deg))
             {
-                ROS_ERROR("Serial output was NOT successful.");
+                ROS_INFO("Delta for coords (%i, %i, %i) [cm] -> (%i, %i, %i) [degrees]",
+                            x_coord, y_coord, z_coord, angle1Deg, angle2Deg, angle3Deg);
+
+                //// Time the blocking call to actuate arm angles
+                // ros::WallTime start_, end_;
+                // start_ = ros::WallTime::now();
+                
+                // Block until we've actuated to these angles
+                if (!actuateArmAngles(angle1Deg, angle2Deg, angle3Deg))
+                {
+                    ROS_ERROR("Could not actuate motors to specified arm angles");
+                }
+
+                // end_ = ros::WallTime::now();
+                // double execution_time = (end_ - start_).toNSec() * 1e-6;
+                // ROS_INFO_STREAM("Time for actuation (ms): " << execution_time);
+
+                // Wait for end-effector
+                // TODO: or send a different command?
+                ros::Duration(endEffectorTime).sleep();
+
+                // RESET ARM POSITIONS
+                if (!actuateArmAngles(0, 0, 0))
+                {
+                    ROS_ERROR("Could not actuate motors to specified arm angles");
+                }
             }
-        }
-        else
-        {
-            ROS_DEBUG("No reponse from FetchWeed service");
+            else
+            {
+                ROS_ERROR("Could not get arm angles.");
+            }
         }
 
         ros::spinOnce();

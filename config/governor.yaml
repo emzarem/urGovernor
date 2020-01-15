@@ -3,8 +3,10 @@ fetch_weed_service: /urGovernor/fetch_weed_service
 
 # Serial setup
 serial_output_service: /urGovernor/serial_output_service
+serial_input_service: /urGovernor/serial_input_service
 serial_port: /dev/ttyTHS1
 serial_baud_rate: 115200
+serial_timeout_ms: 1000
 
 # Max allowable disappeared frames
 max_disappeared_frames: 2

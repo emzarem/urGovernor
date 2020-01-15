@@ -1,6 +1,0 @@
-#request
-int32 caller
-string command
----
-#response
-int32 status
