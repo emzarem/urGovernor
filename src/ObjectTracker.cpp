@@ -118,10 +118,12 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
 
     else if (m_active_objects.size() == 0)
     {
+        ROS_INFO("Tracker -- no current objects, registering all objects");
+        
         // If we don't have any current objects register all the new ones
         for (auto itr = new_objs.begin(); itr != new_objs.end(); itr++)
         {
-            ROS_INFO("Tracker -- no current objects, registering object @ (x,y,z) : (%i, %i, %i)", itr->x, itr->y, itr->z);
+            ROS_INFO("Tracking (x,y,size) = (%i, %i, %i)", itr->x, itr->y, itr->z);
             register_object(*itr);
         }
     }

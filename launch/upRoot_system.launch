@@ -1,11 +1,18 @@
+<!--  -->
+<!-- Launch file for the entire UpRoot System -->
+<!--  -->
 <launch>
-	<!-- Launch serialOutput node -->
+	<!-- Launch urVision node with camera stream -->
+	<include file="$(find urVision)/launch/urVision.launch"></include>
+
+    <!-- Launch serialOutput node -->
 	<node pkg="urGovernor" type="serialOutput" name="serialOutput" output="screen">
 		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
 	</node>
 
-	<!-- Launch deltaTest node -->
-	<node pkg="urGovernor" type="deltaTest" name="deltaTest" output="screen">
+	<!-- Launch urGovernor node -->
+	<node pkg="urGovernor" type="urGovernor" name="urGovernor" output="screen">
+		<rosparam command="load" file="$(find urVision)/config/common.yaml" />
 		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
 	</node>
 
