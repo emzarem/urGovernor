@@ -142,7 +142,7 @@ target_link_libraries(controller
 
 ## Declare cpp executables
 add_executable(deltaTest
-  src/deltaTest_node.cpp
+  src/testnodes/deltaTest_node.cpp
 )
 
 add_dependencies(deltaTest
@@ -167,7 +167,7 @@ target_link_libraries(serialOutput
 
 ## For testing serial
 add_executable(testTeensy
-    src/testTeensy_node.cpp
+    src/testnodes/testTeensy_node.cpp
 )
 
 add_dependencies(testTeensy
@@ -175,6 +175,19 @@ add_dependencies(testTeensy
 )
 
 target_link_libraries(testTeensy
+  ${catkin_LIBRARIES}
+)
+
+## Stub node for testing without physical serial lines
+add_executable(serialStub
+    src/testnodes/serialStub_node.cpp
+)
+
+add_dependencies(serialStub
+  ${catkin_EXPORTED_TARGETS}
+)
+
+target_link_libraries(serialStub
   ${catkin_LIBRARIES}
 )
 

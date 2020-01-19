@@ -15,32 +15,41 @@ std::string weedPublisherName;
 std::string fetchWeedServiceName;
 Distance distanceTolerance;
 int maxDisappearedFrms;
+int minValidFrames;
+
 
 static inline Object weed_to_object(urVision::weedData& weed)
 {
-    return {(int32_t)weed.x_cm, (int32_t)weed.y_cm, (int32_t)weed.size_cm};
+    /* all values are floats */
+    return {(float)weed.x_cm, (float)weed.y_cm, (float)weed.z_cm, (float)weed.size_cm};
 }
 
 static void object_to_weed(Object& obj, urVision::weedData& weed)
 {
     weed.x_cm = obj.x;
     weed.y_cm = obj.y;
-    weed.size_cm = obj.z;
+    weed.z_cm = obj.z;
+    weed.size_cm = obj.size;
 }
 
-// Fetch weed service (called by controller)
+/* Fetch weed service (called by controller):
+ *      Returns
+ * 
+ * 
+ */
 bool fetch_weed(urGovernor::FetchWeed::Request &req, urGovernor::FetchWeed::Response &res)
 {
-    Object top_obj;
-    if (!p_tracker->top(top_obj))
+    Object top_valid_obj;
+    if (p_tracker->topValid(top_valid_obj))
     {
-        ROS_INFO("fetch_weed_service: No current weeds available");
-        return false;
+        /* Set response data to include weed fetched from the top */
+        object_to_weed(top_valid_obj, res.weed);
+        return true;
     }
     else
     {
-        object_to_weed(top_obj, res.weed);
-        return true;
+        ROS_INFO("fetch_weed_service: No current weeds are valid (yet).");
+        return false;
     }
 }
 
@@ -52,8 +61,7 @@ void new_weed_callback(const urVision::weedDataArray::ConstPtr& msg)
 
     for (auto weed : msg->weeds)
     {
-        /* x, y are msg::Int32, size is a msg::Float64 */
-        ROS_DEBUG("\tNew weed: x- %i    y- %i      size- %i", weed.x_cm, weed.y_cm, (int32_t)weed.size_cm);
+        ROS_DEBUG("\tNew weed: x- %f    y- %f      z- %f      size- %f", weed.x_cm, weed.y_cm, weed.z_cm, weed.size_cm);
         new_objs.push_back(weed_to_object(weed));
     }
 
@@ -67,6 +75,7 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
 
     if (!nodeHandle.getParam("max_disappeared_frames", maxDisappearedFrms)) return false;
+    if (!nodeHandle.getParam("min_valid_frames", minValidFrames)) return false;
     if (!nodeHandle.getParam("distance_tolerance", distanceTolerance)) return false;
 
     return true;
@@ -83,7 +92,7 @@ int main(int argc, char** argv)
         ros::requestShutdown();
     }
 
-    p_tracker = new ObjectTracker(distanceTolerance, maxDisappearedFrms);
+    p_tracker = new ObjectTracker(distanceTolerance, maxDisappearedFrms, minValidFrames);
 
     // Subscriber to the weed publisher (from urVision)
     ros::Subscriber sub = nodeHandle.subscribe(weedPublisherName, 1000, new_weed_callback);

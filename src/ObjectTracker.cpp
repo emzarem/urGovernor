@@ -22,6 +22,8 @@ static Distance euclidean_distance(const Object& a, const Object& b)
     Distance delt_x = (Distance)a.x - (Distance)b.x;
     Distance delt_y = (Distance)a.y - (Distance)b.y;
     Distance delt_z = (Distance)a.z - (Distance)b.z;
+    /*TODO: Do we want size to be in comparison? */    
+    // Distance delt_size = (Distance)a.size - (Distance)b.size;
     return sqrt(delt_x*delt_x + delt_y*delt_y + delt_z*delt_z);
 }
 
@@ -31,8 +33,8 @@ static Distance euclidean_distance(const Object& a, const Object& b)
  *      @param max_dissapeared_frms : 
  *              max number of missed frames before object removed
  */
-ObjectTracker::ObjectTracker(Distance distTol, uint32_t max_dissapeared_frms) :
-    m_dist_tol(distTol), m_max_dissapeared_frms(max_dissapeared_frms)
+ObjectTracker::ObjectTracker(Distance distTol, uint32_t max_dissapeared_frms, uint32_t min_valid_framecount) :
+    m_dist_tol(distTol), m_max_dissapeared_frms(max_dissapeared_frms), m_min_framecount(min_valid_framecount)
 {}
 
 /* ~ObjectTracker
@@ -65,6 +67,33 @@ size_t ObjectTracker::object_count()
 }
 
 /* top
+ *      @brief returns the largest Object with other valid parameters (as defined by operator>)
+ *
+ *      @param  to_ret  : The top object is returned through this
+ *      @returns   bool : True if top object exists, false otherwise
+ */
+bool ObjectTracker::topValid(Object& to_ret)
+{
+    if (object_count() == 0)
+        return false;
+
+    /* Go through all active objects and check for 'valid' conditions */
+    for (auto itr = m_active_objects.begin(); itr != m_active_objects.end(); itr++)
+    {
+        // If valid framecount and NOT uprooted
+        if (m_framecount[itr->first] >= m_min_framecount && 
+             false == m_uprooted[itr->first])
+        {
+            m_uprooted[itr->first] = true;
+            to_ret = itr->second;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/* top
  *      @brief returns the largest Object (as defined by operator>)
  *
  *      @param  to_ret  : The top object is returned through this
@@ -75,17 +104,8 @@ bool ObjectTracker::top(Object& to_ret)
     if (object_count() == 0)
         return false;
 
-    for (auto itr = m_uprooted.begin(); itr != m_uprooted.end(); itr++)
-    {
-        if (0 == itr->second)
-        {
-            itr->second = 1;
-            to_ret = m_active_objects[itr->first];
-            return true;
-        }
-    }
-
-    return false;
+    to_ret = m_active_objects[m_id_list[0]];
+    return true;
 }
 
 /* update
@@ -110,20 +130,20 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
     if (new_objs.size() == 0) 
     {
         // If we didn't get any new objects, all are dissapeared
-        for (auto itr = m_dissapeared.begin(); itr != m_dissapeared.end(); itr++)
+        for (auto itr = m_disappeared.begin(); itr != m_disappeared.end(); itr++)
         {
-            m_dissapeared[itr->first]++;
+            m_disappeared[itr->first]++;
+            m_framecount[itr->first] = 0;
         }
     }
 
     else if (m_active_objects.size() == 0)
     {
-        ROS_INFO("Tracker -- no current objects, registering all objects");
+        ROS_DEBUG("Tracker -- no current objects, registering all objects");
         
         // If we don't have any current objects register all the new ones
         for (auto itr = new_objs.begin(); itr != new_objs.end(); itr++)
         {
-            ROS_INFO("Tracking (x,y,size) = (%i, %i, %i)", itr->x, itr->y, itr->z);
             register_object(*itr);
         }
     }
@@ -199,6 +219,8 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
                     // We found our tracked object!
                     used_cols[*sub_itr] = 1; // update that we used this object
                     m_active_objects[m_id_list[*itr]] = new_objs[*sub_itr];
+                    // Increment the number of consecutive frames this was found in
+                    m_framecount[m_id_list[*itr]]++;
                     found_update = true;
                     break;
                 }
@@ -207,7 +229,10 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
 
             // If not updated its missing this frame
             if (!found_update)
-                m_dissapeared[m_id_list[*itr]]++;
+            {
+                m_disappeared[m_id_list[*itr]]++;
+                m_framecount[m_id_list[*itr]] = 0;
+            }
         }
 
         // Add any new objects in the scene
@@ -215,8 +240,6 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
         {
            if (used_cols.count(x) == 0)
            {
-               ROS_INFO("Tracker -- registering new object in this scene @ (x,y,z) : (%i, %i, %i)", 
-                            new_objs[x].x, new_objs[x].y, new_objs[x].z);
                register_object(new_objs[x]);
            }
         }
@@ -232,15 +255,17 @@ void ObjectTracker::update(const std::vector<Object>& new_objs)
  */
 ObjectID ObjectTracker::register_object(const Object& obj)
 {
+    ROS_INFO("Tracking (x,y,z,size) = (%.2f,%.2f,%.2f,%.2f)", obj.x, obj.y, obj.z, obj.size);
+
     // Insertion sort on IDs
     auto id_itr = m_id_list.begin();
     while (id_itr != m_id_list.end() && m_active_objects[*id_itr] > obj) {id_itr++;}
     m_id_list.insert(id_itr, m_next_id);
     
-
     m_active_objects[m_next_id] = obj;
-    m_uprooted[m_next_id] = 0;
-    m_dissapeared[m_next_id] = 0;
+    m_uprooted[m_next_id] = false;
+    m_disappeared[m_next_id] = 0;
+    m_framecount[m_next_id] = 1;
 
     return m_next_id++;
 }
@@ -252,7 +277,8 @@ void ObjectTracker::deregister_object(const ObjectID id)
 {
     m_active_objects.erase(id);
     m_uprooted.erase(id);
-    m_dissapeared.erase(id);
+    m_disappeared.erase(id);
+    m_framecount.erase(id);
     for (auto itr = m_id_list.begin(); itr != m_id_list.end(); itr++)
     {
         if (*itr == id)
@@ -269,7 +295,7 @@ void ObjectTracker::deregister_object(const ObjectID id)
  */
 void ObjectTracker::cleanup_dissapeared()
 {
-    for (auto itr = m_dissapeared.begin(); itr != m_dissapeared.end(); itr++)
+    for (auto itr = m_disappeared.begin(); itr != m_disappeared.end(); itr++)
     {
         if (itr->second > m_max_dissapeared_frms)
             deregister_object(itr->first);

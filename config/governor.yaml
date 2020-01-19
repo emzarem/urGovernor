@@ -10,5 +10,9 @@ serial_timeout_ms: 1000
 
 # Max allowable disappeared frames
 max_disappeared_frames: 2
+
+# Min frames to identify the same weed in to be valid
+min_valid_frames: 5
+
 # Distance tolerance for tracking between frames (in cm)
 distance_tolerance: 0.5

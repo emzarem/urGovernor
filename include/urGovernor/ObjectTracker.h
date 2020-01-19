@@ -20,9 +20,11 @@
  *      @brief Struct holding centroid of object to track
  */
 struct Object {
-    int32_t x;
-    int32_t y;
-    int32_t z;
+    // All values in cm
+    float x;
+    float y;
+    float z;
+    float size;
 
     operator std::string() const
     {
@@ -37,13 +39,13 @@ struct Object {
 
 inline bool operator==(const Object& lhs, const Object& rhs)
 {
-    return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+    return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z && lhs.size == rhs.size;
 }
 
 inline bool operator>(const Object& lhs, const Object& rhs)
 {
-    // Currently using z value as basis for sorting (use for size)
-    return lhs.z > rhs.z;
+    // Currently using size value as a basis for sorting
+    return lhs.size > rhs.size;
 }
 
 
@@ -65,7 +67,7 @@ typedef float Distance;
  */
 class ObjectTracker {
     public:
-        ObjectTracker(Distance distTol, uint32_t max_dissapeared_frms = 1);
+        ObjectTracker(Distance distTol, uint32_t max_dissapeared_frms = 1 ,uint32_t min_valid_framecount = 1);
         ~ObjectTracker();
        
         // Getters
@@ -74,6 +76,10 @@ class ObjectTracker {
         
         // Sorted operations
         bool top(Object& to_ret);
+
+        // Additional checks:
+        // Is it uprooted? How many frames has it been in?
+        bool topValid(Object& to_ret);
 
         // Modifiers
         void update(const std::vector<Object>& new_objs);
@@ -87,12 +93,21 @@ class ObjectTracker {
         Distance m_dist_tol;
 
         ObjectID m_next_id;
+        /* Max num. frames an object can disappear in before being deregistered */
         uint32_t m_max_dissapeared_frms;
+        /* Min num. of consecutive frames to be considered valid */
+        uint32_t m_min_framecount;
 
         std::map<ObjectID, Object> m_active_objects;
-        std::map<ObjectID, uint32_t> m_uprooted;
 
-        std::map<ObjectID, uint32_t> m_dissapeared;
+        /* Each registered object will have an associated:
+         *      framecount: the number of consecutive frames this object has appeared in
+         *      dissapeared: total number of frames this alleged "object" has not appeared in
+         *      uprooted: true if this weed has already been processed  
+         */
+        std::map<ObjectID, uint32_t> m_framecount;
+        std::map<ObjectID, uint32_t> m_disappeared;
+        std::map<ObjectID, bool> m_uprooted;
 
         std::vector<ObjectID> m_id_list;
 };

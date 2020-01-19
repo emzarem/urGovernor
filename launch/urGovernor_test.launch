@@ -3,6 +3,11 @@
 	<!-- Launch urVision node with test image stream -->
 	<include file="$(find urVision)/launch/urVision_test.launch"></include>
 
+	<!-- Launch serialStub node -->
+	<node pkg="urGovernor" type="serialStub" name="serialStub" output="screen">
+		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
+	</node>
+
 	<!-- Launch urGovernor node -->
 	<node pkg="urGovernor" type="urGovernor" name="urGovernor" output="screen">
 		<rosparam command="load" file="$(find urVision)/config/common.yaml" />

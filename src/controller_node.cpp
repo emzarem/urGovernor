@@ -60,6 +60,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     msg.m1_angle = angle1Deg;
     msg.m2_angle = angle2Deg;
     msg.m3_angle = angle3Deg;
+    msg.motors_done = false;
     
     SerialUtils::pack(buff, msg);
 
@@ -97,7 +98,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
         ROS_ERROR("Serial write to set motors was NOT successful.");
     }
     
-    return false;
+    return 0;
 }
 
 int main(int argc, char** argv)
@@ -139,25 +140,21 @@ int main(int argc, char** argv)
         // Call for a new weed
         if (fetchWeedClient.call(fetchWeedSrv))
         {
-            ROS_INFO("CONTROLLER -- got weed at (%i, %i)", (int32_t)fetchWeedSrv.response.weed.x_cm, (int32_t)fetchWeedSrv.response.weed.y_cm);
-
-            /* Create coordinates in the Delta Arm Reference  */
-            // All coordinates in mm
-            // TODO: need to do some conversion here (arm is centered on (0,0) in the middle)
-            int x_coord = (int32_t)fetchWeedSrv.response.weed.x_cm;
-            int y_coord = (int32_t)fetchWeedSrv.response.weed.y_cm;
+            // Create coordinates in the Delta Arm Reference
+            float x_coord = (float)fetchWeedSrv.response.weed.x_cm;
+            float y_coord = (float)fetchWeedSrv.response.weed.y_cm;
             // z = 0 IS AT THE GROUND (z = is always positive)
-            int z_coord = soilOffset;
+            float z_coord = (float)(fetchWeedSrv.response.weed.z_cm + soilOffset);
             
             /* Calculate angles for Delta arm */
-            robot_position((float)x_coord, (float)x_coord, (float)z_coord); 
+            robot_position(x_coord, x_coord, z_coord); 
 
             int angle1Deg,angle2Deg,angle3Deg;
 
             // Get the resulting angles from kinematics
             if (getArmAngles(&angle1Deg, &angle2Deg, &angle3Deg))
             {
-                ROS_INFO("Delta for coords (%i, %i, %i) [cm] -> (%i, %i, %i) [degrees]",
+                ROS_INFO("Delta for coords (%.2f,%.2f,%.2f) [cm] -> (%i,%i,%i) [degrees]",
                             x_coord, y_coord, z_coord, angle1Deg, angle2Deg, angle3Deg);
 
                 //// Time the blocking call to actuate arm angles

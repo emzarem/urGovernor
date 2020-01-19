@@ -3,6 +3,9 @@
 #include <std_msgs/String.h>
 #include <std_msgs/Empty.h>
 
+// Shared lib
+#include "SerialPacket.h"
+
 // Srv and msg types
 #include <urGovernor/SerialWrite.h>
 #include <urGovernor/SerialRead.h>
@@ -21,13 +24,17 @@ serial::Serial ser;
 // Serial Write service (called by controller to send motor angles)
 bool serialWrite(urGovernor::SerialWrite::Request &req, urGovernor::SerialWrite::Response &res)
 {
-    std::string msg = req.command;
+    std::string string_msg = req.command;
 
-    // TODO: Add in some error checking here on the serial port.
-    ROS_INFO_STREAM("Writing to serial port: " << msg);
+    std::vector<char> v(req.command.begin(), req.command.end());
+    SerialUtils::CmdMsg cmdMsg = {0};
+    // Unpack response from read
+    SerialUtils::unpack(v, cmdMsg);
+
+    ROS_DEBUG_STREAM("Writing to serial: " << std::endl << std::string(cmdMsg));
     
     // Send over serial
-    ser.write(msg);
+    ser.write(string_msg);
     res.status = 0;
 
     return true;
@@ -39,7 +46,12 @@ bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Re
     // This should block until we read a line (by default this is delimited by '\n')
     res.command = (std::string)ser.readline();
 
-    ROS_INFO_STREAM("Read from serial port: " << std::string(res.command));
+    std::vector<char> v(res.command.begin(), res.command.end());
+    SerialUtils::CmdMsg cmdMsg = {0};
+    // Unpack response from read
+    SerialUtils::unpack(v, cmdMsg);
+
+    ROS_DEBUG_STREAM("Reading from serial: " << std::endl << std::string(cmdMsg));
 
     return true;
 }
