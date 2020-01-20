@@ -9,6 +9,7 @@
 // Srv and msg types
 #include <urGovernor/SerialWrite.h>
 #include <urGovernor/SerialRead.h>
+
 using namespace std;
 
 // Parameters to read from configs
@@ -43,17 +44,29 @@ bool serialWrite(urGovernor::SerialWrite::Request &req, urGovernor::SerialWrite:
 // Serial Read service (called by controller to sychronize end of motor movement)
 bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Response &res)
 {
-    // This should block until we read a line (by default this is delimited by '\n')
-    res.command = (std::string)ser.readline();
+    // Blocks until acquired num_lines or timeout occured
+    // Serial::readlines(num_lines)
+    vector<string> responseList = ser.readlines(1);
+    
+    // If we got a response
+    if (responseList.size() == 1)
+    {
+        res.command = responseList[0];   
 
-    std::vector<char> v(res.command.begin(), res.command.end());
-    SerialUtils::CmdMsg cmdMsg = {0};
-    // Unpack response from read
-    SerialUtils::unpack(v, cmdMsg);
+        std::vector<char> v(res.command.begin(), res.command.end());
+        SerialUtils::CmdMsg cmdMsg = {0};
+        // Unpack response from read
+        SerialUtils::unpack(v, cmdMsg);
 
-    ROS_DEBUG_STREAM("Reading from serial: " << std::endl << std::string(cmdMsg));
+        ROS_DEBUG_STREAM("Reading from serial: " << std::endl << std::string(cmdMsg));
 
-    return true;
+        return true;
+    }
+    // Otherwise we timed out!
+    else
+    {
+        return false;
+    }
 }
 
 // General parameters for this node

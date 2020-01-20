@@ -90,7 +90,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
         }
         else
         {
-            ROS_ERROR("Reading back from serial was NOT successful.");
+            ROS_ERROR("Timed out waiting for response from Teensy.");
         }
     }
     else
@@ -157,29 +157,31 @@ int main(int argc, char** argv)
                 ROS_INFO("Delta for coords (%.2f,%.2f,%.2f) [cm] -> (%i,%i,%i) [degrees]",
                             x_coord, y_coord, z_coord, angle1Deg, angle2Deg, angle3Deg);
 
-                //// Time the blocking call to actuate arm angles
+                // // Time the blocking call to actuate arm angles
                 // ros::WallTime start_, end_;
                 // start_ = ros::WallTime::now();
                 
                 // Block until we've actuated to these angles
-                if (!actuateArmAngles(angle1Deg, angle2Deg, angle3Deg))
+                if (actuateArmAngles(angle1Deg, angle2Deg, angle3Deg))
+                {
+                    // Wait for end-effectors
+                    // TODO: or send a different command?
+                    ros::Duration(endEffectorTime).sleep();
+
+                    // RESET ARM POSITIONS
+                    if (!actuateArmAngles(0, 0, 0))
+                    {
+                        ROS_ERROR("Could not Reset arm positions.");
+                    }
+                }
+                else
                 {
                     ROS_ERROR("Could not actuate motors to specified arm angles");
                 }
 
                 // end_ = ros::WallTime::now();
                 // double execution_time = (end_ - start_).toNSec() * 1e-6;
-                // ROS_INFO_STREAM("Time for actuation (ms): " << execution_time);
-
-                // Wait for end-effector
-                // TODO: or send a different command?
-                ros::Duration(endEffectorTime).sleep();
-
-                // RESET ARM POSITIONS
-                if (!actuateArmAngles(0, 0, 0))
-                {
-                    ROS_ERROR("Could not actuate motors to specified arm angles");
-                }
+                // ROS_INFO_STREAM("Actuation time for weed (ms): " << execution_time);
             }
             else
             {

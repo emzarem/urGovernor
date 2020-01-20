@@ -15,21 +15,22 @@ static int testIndex = 0;
 
 // (x,y,size) in cm. Size should be set to 0,not used
 Object tests[] = {
-    {0,0,0},
-    {19,19,0},
-    {-19,-19,0},
-    {19,0,0},
-    {0,-19,0},
-    {10,10,0},
-    {-5,10,0},
-    {-10,5,0},
+    {0,0,0,0},
+    {19,19,0,0},
+    {-19,-19,0,0},
+    {19,0,0,0},
+    {0,-19,0,0},
+    {10,10,0,0},
+    {-5,10,0,0},
+    {-10,5,0,0},
 };
 
 static void object_to_weed(Object& obj, urVision::weedData& weed)
 {
     weed.x_cm = obj.x;
     weed.y_cm = obj.y;
-    weed.size_cm = obj.z;
+    weed.z_cm = obj.z;
+    weed.size_cm = obj.size;
 }
 
 /* This is a test implementation of the fetch weed service */

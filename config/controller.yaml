@@ -2,4 +2,4 @@
 controller_query_rate: 1
 
 # Time for end-effector to perform its duties (in seconds)
-end_effector_time_s: 0.5
+end_effector_time_s: 3

@@ -15,7 +15,7 @@
 	<node pkg="urGovernor" type="controller" name="controller" output="screen" 
 			launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' " >
 		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
-		<rosparam command="load" file="$(find urGovernor)/config/controller.yaml" />
+		<rosparam command="load" file="$(find urGovernor)/config/controller_test.yaml" />
 		<rosparam command="load" file="$(find urGovernor)/config/kinematics.yaml" />
 	</node>
 
