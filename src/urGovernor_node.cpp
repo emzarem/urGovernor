@@ -48,7 +48,7 @@ bool fetch_weed(urGovernor::FetchWeed::Request &req, urGovernor::FetchWeed::Resp
     }
     else
     {
-        ROS_INFO("fetch_weed_service: No current weeds are valid (yet).");
+        ROS_DEBUG("fetch_weed_service: No current weeds are valid (yet).");
         return false;
     }
 }

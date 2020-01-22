@@ -6,13 +6,13 @@ serial_output_service: /urGovernor/serial_output_service
 serial_input_service: /urGovernor/serial_input_service
 serial_port: /dev/ttyTHS1
 serial_baud_rate: 115200
-serial_timeout_ms: 1000
+serial_timeout_ms: 5000
 
 # Max allowable disappeared frames
 max_disappeared_frames: 2
 
 # Min frames to identify the same weed in to be valid
-min_valid_frames: 5
+min_valid_frames: 30
 
 # Distance tolerance for tracking between frames (in cm)
-distance_tolerance: 0.5
+distance_tolerance: 3

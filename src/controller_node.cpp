@@ -30,6 +30,9 @@ double endEffectorTime = 0;
 ros::ServiceClient serialWriteClient;
 ros::ServiceClient serialReadClient;
 
+const int logFetchWeedInterval = 5;
+
+
 // General parameters for this node
 bool readGeneralParameters(ros::NodeHandle nodeHandle)
 {
@@ -106,6 +109,8 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "controller_node");
     ros::NodeHandle nh;
     ros::NodeHandle nodeHandle("~");
+
+    int fetchWeedLogs = 0;
 
     if (!readGeneralParameters(nodeHandle))
     {
@@ -187,6 +192,14 @@ int main(int argc, char** argv)
             {
                 ROS_ERROR("Could not get arm angles.");
             }
+        }
+        else
+        {
+            if (fetchWeedLogs % logFetchWeedInterval == 1)
+            {
+                ROS_INFO("Controller -- no weeds are current.");
+            }
+            fetchWeedLogs++;
         }
 
         ros::spinOnce();
