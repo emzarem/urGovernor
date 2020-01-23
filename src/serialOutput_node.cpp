@@ -48,10 +48,16 @@ bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Re
     // Serial::readlines(num_lines)
     vector<string> responseList = ser.readlines(1);
     
-    // If we got a response
+    // Check that we got a single response
     if (responseList.size() == 1)
     {
-        res.command = responseList[0];   
+        res.command = responseList[0];
+
+        // If return string was too small
+        if (res.command.length() < sizeof(SerialUtils::CmdMsg))
+        {
+            return false;
+        }
 
         std::vector<char> v(res.command.begin(), res.command.end());
         SerialUtils::CmdMsg cmdMsg = {0};

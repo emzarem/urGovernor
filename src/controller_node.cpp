@@ -63,7 +63,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     msg.m1_angle = angle1Deg;
     msg.m2_angle = angle2Deg;
     msg.m3_angle = angle3Deg;
-    msg.motors_done = false;
+    msg.motors_done = 0;
     
     SerialUtils::pack(buff, msg);
 
@@ -72,28 +72,36 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     // Send angles to HAL (via calling the serial WRITE client)
     if (serialWriteClient.call(serialWrite))
     {
-        // Wait for arm done
-        // This is done by calling the serial READ client
-        // This should block until we get a CmdMsg FROM the serial line
-        if (serialReadClient.call(serialRead))
+        while (ros::ok())
         {
-            std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
-            // Unpack response from read
-            SerialUtils::unpack(v, msg);
+            // Wait for arm done
+            // This is done by calling the serial READ client
+            // This should block until we get a CmdMsg FROM the serial line
+            if (serialReadClient.call(serialRead))
+            {
+                std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
+                
+                msg.motors_done = 0;
+                // Unpack response from read
+                SerialUtils::unpack(v, msg);
 
-            // This should indicate that we are done
-            if (msg.motors_done)
-            {
-                return 1;
+                // This should indicate that we are done
+                if (msg.motors_done)
+                {
+                    return 1;
+                }
+                else 
+                {
+                    ROS_ERROR("Motors did not return with (motors_done == true)");
+                    return 0;
+                }
             }
-            else 
+            else
             {
-                ROS_ERROR("Motors did not return with (motors_done == true)");
+                ROS_ERROR("Timed out waiting for response from Teensy ... retrying ...");
             }
-        }
-        else
-        {
-            ROS_ERROR("Timed out waiting for response from Teensy.");
+
+            ros::spinOnce();
         }
     }
     else
@@ -177,11 +185,13 @@ int main(int argc, char** argv)
                     if (!actuateArmAngles(0, 0, 0))
                     {
                         ROS_ERROR("Could not Reset arm positions.");
+                        ros::requestShutdown();
                     }
                 }
                 else
                 {
                     ROS_ERROR("Could not actuate motors to specified arm angles");
+                    ros::requestShutdown();
                 }
 
                 // end_ = ros::WallTime::now();
