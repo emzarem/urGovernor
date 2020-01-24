@@ -15,6 +15,7 @@
 std::string serialServiceWriteName;
 std::string serialServiceReadName;
 double endEffectorTime = 0;
+int serialTimeoutMs;
 
 // Connections to Serial interface services
 ros::ServiceClient serialWriteClient;
@@ -27,7 +28,8 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("serial_output_service", serialServiceWriteName)) return false;
     if (!nodeHandle.getParam("serial_input_service", serialServiceReadName)) return false;
     if (!nodeHandle.getParam("end_effector_time_s", endEffectorTime)) return false;
-   
+    if (!nodeHandle.getParam("serial_timeout_ms", serialTimeoutMs)) return false;
+  
     return true;
 }
 
@@ -54,6 +56,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     // Send angles to HAL (via calling the serial WRITE client)
     if (serialWriteClient.call(serialWrite))
     {
+        ros::Rate loopRate( 1.0 / (serialTimeoutMs / 1000.0));
         while (ros::ok())
         {
             // Wait for arm done
@@ -70,6 +73,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
                 // This should indicate that we are done
                 if (msg.motors_done)
                 {
+                    ROS_INFO("Motor callback received.");
                     return 1;
                 }
                 else 
@@ -80,10 +84,9 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
             }
             else
             {
-                ROS_ERROR("Timed out waiting for response from Teensy ... retrying ...");
+                ROS_DEBUG("Timed out waiting for response from Teensy ... retrying ...");
             }
-
-            ros::spinOnce();
+            loopRate.sleep();
         }
     }
     else
@@ -93,6 +96,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     
     return 0;
 }
+
 
 bool moveArm(urGovernor::KinematicsTest::Request &req, urGovernor::KinematicsTest::Response &res) {
     // Create coordinates in the Delta Arm Reference

@@ -7,7 +7,7 @@
 	<!-- Launch kinematicsTest node -->
 	<node pkg="urGovernor" type="kinematicsTest" name="kinematicsTest" output="screen">
 		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
-	        <rosparam command="load" file="$(find urGovernor)/config/controller_test.yaml" />
+	        <rosparam command="load" file="$(find urGovernor)/config/controller.yaml" />
 		<rosparam command="load" file="$(find urGovernor)/config/kinematics.yaml" />
         </node>
 </launch>
