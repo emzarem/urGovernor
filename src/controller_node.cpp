@@ -14,7 +14,7 @@
 
 // Parameters to read from configs
 std::string fetchWeedServiceName;
-float queryRate;
+float overallRate;
 
 std::string serialServiceWriteName;
 std::string serialServiceReadName;
@@ -32,12 +32,13 @@ ros::ServiceClient serialReadClient;
 
 const int logFetchWeedInterval = 5;
 
+int serialTimeoutMs;
 
 // General parameters for this node
 bool readGeneralParameters(ros::NodeHandle nodeHandle)
 {
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
-    if (!nodeHandle.getParam("controller_query_rate", queryRate)) return false;
+    if (!nodeHandle.getParam("controller_overall_rate", overallRate)) return false;
 
     if (!nodeHandle.getParam("end_effector_time_s", endEffectorTime)) return false;
 
@@ -45,6 +46,8 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
 
     if (!nodeHandle.getParam("serial_output_service", serialServiceWriteName)) return false;
     if (!nodeHandle.getParam("serial_input_service", serialServiceReadName)) return false;
+
+    if (!nodeHandle.getParam("serial_timeout_ms", serialTimeoutMs)) return false;
     
     return true;
 }
@@ -72,6 +75,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     // Send angles to HAL (via calling the serial WRITE client)
     if (serialWriteClient.call(serialWrite))
     {
+        ros::Rate loopRate( 1.0 / (serialTimeoutMs / 1000.0));
         while (ros::ok())
         {
             // Wait for arm done
@@ -88,6 +92,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
                 // This should indicate that we are done
                 if (msg.motors_done)
                 {
+                    ROS_INFO("Motor callback received.");
                     return 1;
                 }
                 else 
@@ -98,10 +103,9 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
             }
             else
             {
-                ROS_ERROR("Timed out waiting for response from Teensy ... retrying ...");
+                ROS_DEBUG("Timed out waiting for response from Teensy ... retrying ...");
             }
-
-            ros::spinOnce();
+            loopRate.sleep();
         }
     }
     else
@@ -143,10 +147,17 @@ int main(int argc, char** argv)
     // Default deltarobot setup
     deltarobot_setup();
 
+    // ZERO ARM POSITIONS
+    if (!actuateArmAngles(0, 0, 0))
+    {
+        ROS_ERROR("Could not Initialize arm positions.");
+        ros::requestShutdown();
+    }
+
     /* 
      * Main loop for controller
      */
-    ros::Rate loopRate(queryRate);
+    ros::Rate loopRate(overallRate);
     while (ros::ok())
     {
         fetchWeedSrv.request.caller = 1;
@@ -160,7 +171,7 @@ int main(int argc, char** argv)
             float z_coord = (float)(fetchWeedSrv.response.weed.z_cm + soilOffset);
             
             /* Calculate angles for Delta arm */
-            robot_position(x_coord, x_coord, z_coord); 
+            robot_position(x_coord, y_coord, z_coord); 
 
             int angle1Deg,angle2Deg,angle3Deg;
 

@@ -1,5 +1,0 @@
-# **MAX** Query rate of the controller to make service requests for new weeds [Hz]
-controller_query_rate: 0.125
-
-# Time for end-effector to perform its duties (in seconds)
-end_effector_time_s: 2

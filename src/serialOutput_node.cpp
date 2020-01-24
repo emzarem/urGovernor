@@ -44,15 +44,10 @@ bool serialWrite(urGovernor::SerialWrite::Request &req, urGovernor::SerialWrite:
 // Serial Read service (called by controller to sychronize end of motor movement)
 bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Response &res)
 {
-    // Blocks until acquired num_lines or timeout occured
-    // Serial::readlines(num_lines)
-    vector<string> responseList;
     while (ser.available())
-        responseList.push_back(ser.readline());
-    
-    
-    for (auto &response : responseList)
     {
+        std::string response = ser.readline();
+
         // If return string was too small
         if (response.length() < sizeof(SerialUtils::CmdMsg))
         {
