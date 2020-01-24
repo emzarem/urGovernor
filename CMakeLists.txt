@@ -31,6 +31,7 @@ add_service_files(
   FetchWeed.srv
   SerialWrite.srv
   SerialRead.srv
+  KinematicsTest.srv
 )
 
 generate_messages(
@@ -175,6 +176,24 @@ add_dependencies(testTeensy
 )
 
 target_link_libraries(testTeensy
+  ${catkin_LIBRARIES}
+)
+
+## For kinematics manual testing
+
+## Declare cpp executables
+add_executable(kinematicsTest
+  src/testnodes/kinematics_test_node.cpp
+)
+
+add_dependencies(kinematicsTest
+  kinematics
+  ${catkin_EXPORTED_TARGETS}
+)
+
+# Link libraries
+target_link_libraries(kinematicsTest
+  kinematics
   ${catkin_LIBRARIES}
 )
 
