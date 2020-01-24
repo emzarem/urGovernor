@@ -46,19 +46,20 @@ bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Re
 {
     // Blocks until acquired num_lines or timeout occured
     // Serial::readlines(num_lines)
-    vector<string> responseList = ser.readlines(1);
+    vector<string> responseList;
+    while (ser.available())
+        responseList.push_back(ser.readline());
     
-    // Check that we got a single response
-    if (responseList.size() == 1)
+    
+    for (auto &response : responseList)
     {
-        res.command = responseList[0];
-
         // If return string was too small
-        if (res.command.length() < sizeof(SerialUtils::CmdMsg))
+        if (response.length() < sizeof(SerialUtils::CmdMsg))
         {
-            return false;
+            continue;
         }
 
+        res.command = response;
         std::vector<char> v(res.command.begin(), res.command.end());
         SerialUtils::CmdMsg cmdMsg = {0};
         // Unpack response from read
@@ -68,11 +69,9 @@ bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Re
 
         return true;
     }
+    
     // Otherwise we timed out!
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
 // General parameters for this node
