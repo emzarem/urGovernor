@@ -99,14 +99,19 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
 
 
 bool moveArm(urGovernor::KinematicsTest::Request &req, urGovernor::KinematicsTest::Response &res) {
-    // Create coordinates in the Delta Arm Reference
-    float x_coord = (float)req.x_coord;
-    float y_coord = (float)req.y_coord;
+    /* Create coordinates in the Delta Arm Reference
+    *   This conversion requires a 'rotation matrix' 
+    *   to be applied to comply with Delta library coordinates.
+    *   x' = x*cos(theta) - y*sin(theta)
+    *   y' = x*sin(theta) + y*cos(theta)
+    * Based on our setup, theta = +60 degrees AND X and Y coordinates are switched
+    */
+    float x_coord = (float)(req.y_coord*(0.5) - (req.x_coord)*(0.866));
+    float y_coord = (float)(req.y_coord*(0.866) + (req.x_coord)*(0.5));
     float z_coord = (float)req.z_coord;    // z = 0 IS AT THE GROUND (z = is always positive)
-
     
     /* Calculate angles for Delta arm */
-    robot_position(x_coord, x_coord, z_coord); 
+    robot_position(x_coord, y_coord, z_coord); 
 
     int angle1Deg,angle2Deg,angle3Deg;
 
@@ -116,7 +121,8 @@ bool moveArm(urGovernor::KinematicsTest::Request &req, urGovernor::KinematicsTes
     if (getArmAngles(&angle1Deg, &angle2Deg, &angle3Deg))
     {
         ROS_INFO("Delta for coords (%.2f,%.2f,%.2f) [cm] -> (%i,%i,%i) [degrees]",
-                    x_coord, y_coord, z_coord, angle1Deg, angle2Deg, angle3Deg);
+                    (float)req.x_coord, (float)req.y_coord, (float)req.z_coord, 
+                    angle1Deg, angle2Deg, angle3Deg);
 
         // // Time the blocking call to actuate arm angles
         // ros::WallTime start_, end_;

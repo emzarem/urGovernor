@@ -164,9 +164,15 @@ int main(int argc, char** argv)
         // Call for a new weed
         if (fetchWeedClient.call(fetchWeedSrv))
         {
-            // Create coordinates in the Delta Arm Reference
-            float x_coord = (float)fetchWeedSrv.response.weed.x_cm;
-            float y_coord = (float)fetchWeedSrv.response.weed.y_cm;
+            /* Create coordinates in the Delta Arm Reference
+            *   This conversion requires a 'rotation matrix' 
+            *   to be applied to comply with Delta library coordinates.
+            *   x' = x*cos(theta) - y*sin(theta)
+            *   y' = x*sin(theta) + y*cos(theta)
+            * Based on our setup, theta = +60 degrees AND X and Y coordinates are switched
+            */
+            float x_coord = (float)(fetchWeedSrv.response.weed.y_cm*(0.5) - (fetchWeedSrv.response.weed.x_cm)*(0.866));
+            float y_coord = (float)(fetchWeedSrv.response.weed.y_cm*(0.866) + (fetchWeedSrv.response.weed.x_cm)*(0.5));
             // z = 0 IS AT THE GROUND (z = is always positive)
             float z_coord = (float)(fetchWeedSrv.response.weed.z_cm + soilOffset);
             
@@ -179,7 +185,8 @@ int main(int argc, char** argv)
             if (getArmAngles(&angle1Deg, &angle2Deg, &angle3Deg))
             {
                 ROS_INFO("Delta for coords (%.2f,%.2f,%.2f) [cm] -> (%i,%i,%i) [degrees]",
-                            x_coord, y_coord, z_coord, angle1Deg, angle2Deg, angle3Deg);
+                            fetchWeedSrv.response.weed.x_cm, fetchWeedSrv.response.weed.y_cm, fetchWeedSrv.response.weed.z_cm, 
+                            angle1Deg, angle2Deg, angle3Deg);
 
                 // // Time the blocking call to actuate arm angles
                 // ros::WallTime start_, end_;
