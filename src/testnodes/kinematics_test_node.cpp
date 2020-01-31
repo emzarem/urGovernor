@@ -131,19 +131,8 @@ bool moveArm(urGovernor::KinematicsTest::Request &req, urGovernor::KinematicsTes
         // Block until we've actuated to these angles
         if (actuateArmAngles(angle1Deg, angle2Deg, angle3Deg))
         {
-            // Wait for end-effectors
-            // TODO: or send a different command?
-            ros::Duration(endEffectorTime).sleep();
-
-            // RESET ARM POSITIONS
-            if (!actuateArmAngles(0, 0, 0))
-            {
-                ROS_ERROR("Could not Reset arm positions.");
-                ros::requestShutdown();
-                return false;
-            } else {
-                res.success = true;
-            }
+            res.success = true;
+            return true;          
         }
         else
         {
