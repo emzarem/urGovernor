@@ -1,6 +1,6 @@
 #include <ros/ros.h>
 
-#include "urGovernor/ObjectTracker.h"
+#include "urVision/ObjectTracker.h"
 
 // Srv and msg types
 #include <urGovernor/FetchWeed.h>
@@ -34,7 +34,7 @@ static void object_to_weed(Object& obj, urVision::weedData& weed)
 }
 
 /* This is a test implementation of the fetch weed service */
-// Fetch weed service (called by controller)
+// Fetch weed service (called by governor)
 bool fetch_weed(urGovernor::FetchWeed::Request &req, urGovernor::FetchWeed::Response &res)
 {
     /* Increment test index */
@@ -70,7 +70,7 @@ int main(int argc, char** argv)
         ros::requestShutdown();
     }
 
-    // Service to provide to controller
+    // Service to provide to governor
     ros::ServiceServer service = nodeHandle.advertiseService(fetchWeedServiceName, fetch_weed);
 
     ros::spin();

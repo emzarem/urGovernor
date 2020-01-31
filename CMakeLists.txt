@@ -79,8 +79,9 @@ include_directories(
 )
 
 ## Declare a cpp library
+# Add kinematics 
 add_library(${PROJECT_NAME}_core
-   src/ObjectTracker.cpp
+  src/kinematics/deltaRobot.cpp
 )
 
 ## Declare cpp executables
@@ -92,12 +93,6 @@ add_executable(${PROJECT_NAME}
 add_dependencies(${PROJECT_NAME}_core
   ${catkin_EXPORTED_TARGETS}
 )
-## Add dependencies to exported targets, like ROS msgs or srvs
-# Do we need to do this for kinematics?
-
-add_dependencies(${PROJECT_NAME}
-  ${catkin_EXPORTED_TARGETS}
-)
 
 ## Specify libraries to link executable targets against
 target_link_libraries(${PROJECT_NAME}_core
@@ -106,36 +101,6 @@ target_link_libraries(${PROJECT_NAME}_core
 
 target_link_libraries(${PROJECT_NAME}
   ${PROJECT_NAME}_core
-  ${catkin_LIBRARIES}
-)
-
-## For controller_node
-
-## Declare the kinematics library
-add_library(kinematics
-    src/kinematics/deltaRobot.cpp
-)
-
-## Declare cpp executables
-add_executable(controller
-  src/controller_node.cpp
-)
-
-
-## Add dependencies to exported targets, like ROS msgs or srvs
-# Do we need to do this for kinematics?
-# add_dependencies(kinematics
-#   ${catkin_EXPORTED_TARGETS}
-# )
-
-add_dependencies(controller
-  kinematics
-  ${catkin_EXPORTED_TARGETS}
-)
-
-# Link libraries
-target_link_libraries(controller
-  kinematics
   ${catkin_LIBRARIES}
 )
 
@@ -187,13 +152,13 @@ add_executable(kinematicsTest
 )
 
 add_dependencies(kinematicsTest
-  kinematics
+  ${PROJECT_NAME}_core
   ${catkin_EXPORTED_TARGETS}
 )
 
 # Link libraries
 target_link_libraries(kinematicsTest
-  kinematics
+  ${PROJECT_NAME}_core
   ${catkin_LIBRARIES}
 )
 
@@ -246,15 +211,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 catkin_add_gtest(${PROJECT_NAME}-test
   test/test_urGovernor.cpp
 )
-catkin_add_gtest(ObjectTracker-test
-  test/ObjectTrackerTest.cpp
-)
 endif()
 
 if(TARGET ${PROJECT_NAME}-test)
   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME}_core)
-endif()
-
-if(TARGET ObjectTracker-test)
-  target_link_libraries(ObjectTracker-test ${PROJECT_NAME}_core)
 endif()

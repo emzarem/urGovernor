@@ -1,6 +1,3 @@
-
-fetch_weed_service: /urGovernor/fetch_weed_service
-
 # Serial setup
 serial_output_service: /urGovernor/serial_output_service
 serial_input_service: /urGovernor/serial_input_service
@@ -8,11 +5,8 @@ serial_port: /dev/ttyTHS1
 serial_baud_rate: 115200
 serial_timeout_ms: 250
 
-# Max allowable disappeared frames
-max_disappeared_frames: 2
+# **MAX** Query rate of the controller to make service requests for new weeds [Hz]
+controller_overall_rate: 0.125 
 
-# Min frames to identify the same weed in to be valid
-min_valid_frames: 30
-
-# Distance tolerance for tracking between frames (in cm)
-distance_tolerance: 3
+# Time for end-effector to perform its duties (in seconds)
+end_effector_time_s: 2

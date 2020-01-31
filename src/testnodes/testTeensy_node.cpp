@@ -4,7 +4,7 @@
 #include "SerialPacket.h"
 
 // Srv and msg types
-#include <urGovernor/SerialOutput.h>
+#include <urGovernor/SerialWrite.h>
 
 // Parameters to read from configs
 std::string serialServiceName;
@@ -20,20 +20,20 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "controller_node");
+    ros::init(argc, argv, "testTeensy");
     ros::NodeHandle nh;
     ros::NodeHandle nodeHandle("~");
 
     if (!readGeneralParameters(nodeHandle))
     {
-        ROS_ERROR("Could not read general parameters for controller_node.");
+        ROS_ERROR("Could not read general parameters for testTeensy.");
         ros::requestShutdown();
     }
 
     // Subscribe to service from governor
-    ros::ServiceClient serialClient = nh.serviceClient<urGovernor::SerialOutput>(serialServiceName);
+    ros::ServiceClient serialClient = nh.serviceClient<urGovernor::SerialWrite>(serialServiceName);
     ros::service::waitForService(serialServiceName);
-    urGovernor::SerialOutput serialSrv;
+    urGovernor::SerialWrite serialSrv;
 
 
     // Main loop
