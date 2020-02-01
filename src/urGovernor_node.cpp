@@ -136,7 +136,7 @@ int main(int argc, char** argv)
     serialReadClient = nh.serviceClient<urGovernor::SerialRead>(serialServiceReadName);
     ros::service::waitForService(serialServiceReadName);
 
-    // Subscribe to service from governor
+    // Subscribe to service from tracker
     ros::ServiceClient fetchWeedClient = nh.serviceClient<urGovernor::FetchWeed>(fetchWeedServiceName);
     ros::service::waitForService(fetchWeedServiceName);
     urGovernor::FetchWeed fetchWeedSrv;
@@ -161,6 +161,7 @@ int main(int argc, char** argv)
     while (ros::ok())
     {
         fetchWeedSrv.request.caller = 1;
+        fetchWeedSrv.request.do_uproot = true; // Mark this weed as uprooted
         // Call for a new weed
         if (fetchWeedClient.call(fetchWeedSrv))
         {
