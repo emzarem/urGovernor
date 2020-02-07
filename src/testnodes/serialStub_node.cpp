@@ -43,6 +43,9 @@ bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Re
     SerialUtils::pack(buff, msg);
     res.command = std::string(buff.begin(), buff.end());
 
+    // Put an artificial sleep in here
+    ros::Duration(0.5).sleep();
+
     ROS_DEBUG_STREAM("Reading from serial: " << std::endl << std::string(msg));
 
     return true;

@@ -6,7 +6,13 @@ serial_baud_rate: 115200
 serial_timeout_ms: 250
 
 # **MAX** Query rate of the controller to make service requests for new weeds [Hz]
-controller_overall_rate: 0.125 
+controller_overall_rate: 1
+
+# Resting angle of the arms
+# System will be set to this angle on startup, and every time to do proper imaging
+rest_angle_1: 80
+rest_angle_2: 80
+rest_angle_3: 0
 
 # Time for end-effector to perform its duties (in seconds)
-end_effector_time_s: 2
+end_effector_time_s: 3

@@ -19,6 +19,8 @@ float overallRate;
 std::string serialServiceWriteName;
 std::string serialServiceReadName;
 
+int restAngle1, restAngle2, restAngle3;
+
 const int relativeAngleFlag = false;
 
 int soilOffset = 0;
@@ -39,6 +41,10 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
 {
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
     if (!nodeHandle.getParam("controller_overall_rate", overallRate)) return false;
+
+    if (!nodeHandle.getParam("rest_angle_1", restAngle1)) return false;
+    if (!nodeHandle.getParam("rest_angle_2", restAngle2)) return false;
+    if (!nodeHandle.getParam("rest_angle_3", restAngle3)) return false;
 
     if (!nodeHandle.getParam("end_effector_time_s", endEffectorTime)) return false;
 
@@ -116,6 +122,87 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     return 0;
 }
 
+/* This function does the physical actuation for 'uprooting' a weed
+ *      This controls the strategy for going for a specific weed.
+ * 
+ */
+void doUprootWeed(float targetX, float targetY, float targetZ)
+{
+    // Time this whole operation
+    ros::WallTime start_, end_;
+    start_ = ros::WallTime::now();
+
+    /* Create coordinates in the Delta Arm Reference
+    *   This conversion requires a 'rotation matrix' 
+    *   to be applied to comply with Delta library coordinates.
+    *   x' = x*cos(theta) - y*sin(theta)
+    *   y' = x*sin(theta) + y*cos(theta)
+    * Based on our setup, theta = +60 degrees AND X and Y coordinates are switched
+    */
+    float x_coord = (float)(targetX*(0.5) - ((-1.0)*targetY)*(0.866));
+    float y_coord = (float)(targetX*(0.866) + ((-1.0)*targetY)*(0.5));
+    // z = 0 IS AT THE GROUND (z = is always positive)
+    float z_coord = (float)(targetZ + soilOffset);
+
+    /* Calculate angles for Delta arm */
+    robot_position(x_coord, y_coord, z_coord); 
+
+    int angle1Deg,angle2Deg,angle3Deg;
+
+    // Get the resulting angles from kinematics
+    if (getArmAngles(&angle1Deg, &angle2Deg, &angle3Deg))
+    {
+        ROS_INFO("Delta for coords (%.2f,%.2f,%.2f) [cm] -> (%i,%i,%i) [degrees]",
+                    targetX, targetY, targetZ, 
+                    angle1Deg, angle2Deg, angle3Deg);
+
+        // First, come up to 0. This ensures we don't hit anything on the way
+        if (!actuateArmAngles(0, 0, 0))
+        {
+            ROS_ERROR("Could not bring arms to zero.");
+            ros::requestShutdown();
+        }
+
+        // GO to our target
+        if (actuateArmAngles(angle1Deg, angle2Deg, angle3Deg))
+        {
+            // Wait for end-effectors
+            ros::Duration(endEffectorTime).sleep();
+
+            // Back up to 0
+            if (!actuateArmAngles(0, 0, 0))
+            {
+                ROS_ERROR("Could not bring arms to zero.");
+                ros::requestShutdown();
+            }
+
+            // Back to resting position
+            if (!actuateArmAngles(restAngle1, restAngle2, restAngle3))
+            {
+                ROS_ERROR("Could not Reset arm positions.");
+                ros::requestShutdown();
+            }
+
+            // That's it -- the weed is 'uprooted'
+        }
+        else
+        {
+            ROS_ERROR("Could not actuate motors to specified arm angles");
+            ros::requestShutdown();
+        }
+    }
+    else
+    {
+        ROS_ERROR("Could not get arm angles.");
+    }
+
+    end_ = ros::WallTime::now();
+    double execution_time = (end_ - start_).toNSec() * 1e-6;
+    ROS_DEBUG_STREAM("Actuation time for weed (ms): " << execution_time);
+
+    return;
+}
+
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "urGovernor_node");
@@ -147,8 +234,8 @@ int main(int argc, char** argv)
     // Default deltarobot setup
     deltarobot_setup();
 
-    // ZERO ARM POSITIONS
-    if (!actuateArmAngles(0, 0, 0))
+    // SET arms to initial position
+    if (!actuateArmAngles(restAngle1, restAngle2, restAngle3))
     {
         ROS_ERROR("Could not Initialize arm positions.");
         ros::requestShutdown();
@@ -161,65 +248,23 @@ int main(int argc, char** argv)
     while (ros::ok())
     {
         fetchWeedSrv.request.caller = 1;
-        fetchWeedSrv.request.do_uproot = true; // Mark this weed as uprooted
+        fetchWeedSrv.request.do_uproot = true; // We are uprooting this weed
+        fetchWeedSrv.request.mark_uprooted = false; // It cannot be marked as uprooted *yet*
         // Call for a new weed
         if (fetchWeedClient.call(fetchWeedSrv))
         {
-            /* Create coordinates in the Delta Arm Reference
-            *   This conversion requires a 'rotation matrix' 
-            *   to be applied to comply with Delta library coordinates.
-            *   x' = x*cos(theta) - y*sin(theta)
-            *   y' = x*sin(theta) + y*cos(theta)
-            * Based on our setup, theta = +60 degrees AND X and Y coordinates are switched
-            */
-            float x_coord = (float)(fetchWeedSrv.response.weed.y_cm*(0.5) - (fetchWeedSrv.response.weed.x_cm)*(0.866));
-            float y_coord = (float)(fetchWeedSrv.response.weed.y_cm*(0.866) + (fetchWeedSrv.response.weed.x_cm)*(0.5));
-            // z = 0 IS AT THE GROUND (z = is always positive)
-            float z_coord = (float)(fetchWeedSrv.response.weed.z_cm + soilOffset);
+            // UpRoot this weed!
+            // This call will block until the arm is back in it's rest position
+            doUprootWeed(fetchWeedSrv.response.weed.x_cm, fetchWeedSrv.response.weed.y_cm, fetchWeedSrv.response.weed.z_cm);
+
+            // Mark this weed as uprooted
+            fetchWeedSrv.request.do_uproot = false; // Do not get a new weed
+            fetchWeedSrv.request.mark_uprooted = true; // mark this weed we just uprooted as uprooted
+            fetchWeedSrv.request.uprooted_id = fetchWeedSrv.response.tracking_id;
             
-            /* Calculate angles for Delta arm */
-            robot_position(x_coord, y_coord, z_coord); 
-
-            int angle1Deg,angle2Deg,angle3Deg;
-
-            // Get the resulting angles from kinematics
-            if (getArmAngles(&angle1Deg, &angle2Deg, &angle3Deg))
+            if (!fetchWeedClient.call(fetchWeedSrv))
             {
-                ROS_INFO("Delta for coords (%.2f,%.2f,%.2f) [cm] -> (%i,%i,%i) [degrees]",
-                            fetchWeedSrv.response.weed.x_cm, fetchWeedSrv.response.weed.y_cm, fetchWeedSrv.response.weed.z_cm, 
-                            angle1Deg, angle2Deg, angle3Deg);
-
-                // // Time the blocking call to actuate arm angles
-                // ros::WallTime start_, end_;
-                // start_ = ros::WallTime::now();
-                
-                // Block until we've actuated to these angles
-                if (actuateArmAngles(angle1Deg, angle2Deg, angle3Deg))
-                {
-                    // Wait for end-effectors
-                    // TODO: or send a different command?
-                    ros::Duration(endEffectorTime).sleep();
-
-                    // RESET ARM POSITIONS
-                    if (!actuateArmAngles(0, 0, 0))
-                    {
-                        ROS_ERROR("Could not Reset arm positions.");
-                        ros::requestShutdown();
-                    }
-                }
-                else
-                {
-                    ROS_ERROR("Could not actuate motors to specified arm angles");
-                    ros::requestShutdown();
-                }
-
-                // end_ = ros::WallTime::now();
-                // double execution_time = (end_ - start_).toNSec() * 1e-6;
-                // ROS_INFO_STREAM("Actuation time for weed (ms): " << execution_time);
-            }
-            else
-            {
-                ROS_ERROR("Could not get arm angles.");
+                ROS_ERROR("Controller -- Could not mark weed as uprooted (call to Tracker).");
             }
         }
         else
