@@ -8,6 +8,5 @@
 	<node pkg="urGovernor" type="kinematicsTest" name="kinematicsTest" output="screen">
 		<rosparam command="load" file="$(find urVision)/config/common.yaml" />
 		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
-		<rosparam command="load" file="$(find urGovernor)/config/kinematics.yaml" />
         </node>
 </launch>

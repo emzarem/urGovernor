@@ -20,6 +20,7 @@ std::string serialServiceWriteName;
 std::string serialServiceReadName;
 
 int restAngle1, restAngle2, restAngle3;
+float cartesianLimitX, cartesianLimitY, angleLimit;
 
 const int relativeAngleFlag = false;
 
@@ -45,6 +46,10 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("rest_angle_1", restAngle1)) return false;
     if (!nodeHandle.getParam("rest_angle_2", restAngle2)) return false;
     if (!nodeHandle.getParam("rest_angle_3", restAngle3)) return false;
+
+    if (!nodeHandle.getParam("cartesian_limit_x", cartesianLimitX)) return false;
+    if (!nodeHandle.getParam("cartesian_limit_y", cartesianLimitY)) return false;
+    if (!nodeHandle.getParam("angle_limit", angleLimit)) return false;
 
     if (!nodeHandle.getParam("end_effector_time_s", endEffectorTime)) return false;
 
@@ -144,6 +149,14 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
     // z = 0 IS AT THE GROUND (z = is always positive)
     float z_coord = (float)(targetZ + soilOffset);
 
+    // IF cartesian coordinate are out of range
+    if (abs(x_coord) > cartesianLimitX ||
+        abs(y_coord) > cartesianLimitY)
+    {
+        ROS_ERROR("Current coordinates are out of range of delta arm [(x,y,z)=(%f,%f,%f)]",x_coord,y_coord,z_coord);
+        return;
+    }
+
     /* Calculate angles for Delta arm */
     robot_position(x_coord, y_coord, z_coord); 
 
@@ -152,6 +165,15 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
     // Get the resulting angles from kinematics
     if (getArmAngles(&angle1Deg, &angle2Deg, &angle3Deg))
     {
+        // IF calculated angles are out of range
+        if (angle1Deg > angleLimit ||
+            angle2Deg > angleLimit ||
+            angle3Deg > angleLimit)
+        {
+            ROS_ERROR("Calculated angles are out of range of delta arm [(a1,a2,a3)=(%i,%i,%i)]",angle1Deg,angle2Deg,angle3Deg);
+            return;
+        }
+
         ROS_INFO("Delta for coords (%.2f,%.2f,%.2f) [cm] -> (%i,%i,%i) [degrees]",
                     targetX, targetY, targetZ, 
                     angle1Deg, angle2Deg, angle3Deg);

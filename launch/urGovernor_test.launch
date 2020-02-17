@@ -15,7 +15,6 @@
 			launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' " >
 		<rosparam command="load" file="$(find urVision)/config/common.yaml" />
 		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
-		<rosparam command="load" file="$(find urGovernor)/config/kinematics.yaml" />
 	</node>
 
 </launch>

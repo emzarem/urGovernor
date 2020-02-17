@@ -14,5 +14,15 @@ rest_angle_1: 80
 rest_angle_2: 80
 rest_angle_3: 0
 
+# Limits of arm operation
+# First, check cartesian coordinate limits
+cartesian_limit_x: 40
+cartesian_limit_y: 40
+# Even if cartesian limits pass, check angle limits
+angle_limit: 90
+
 # Time for end-effector to perform its duties (in seconds)
 end_effector_time_s: 3
+
+# Change this depending on how far in / to the soil we awant to go
+soil_offset: -5 # offset of soil (cm)
