@@ -137,6 +137,14 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
     ros::WallTime start_, end_;
     start_ = ros::WallTime::now();
 
+    // IF cartesian coordinate are out of range
+    if (abs(targetX) > cartesianLimitX ||
+        abs(targetY) > cartesianLimitY)
+    {
+        ROS_ERROR("Current coordinates are out of range of delta arm [(x,y,z)=(%.1f,%.1f,%.1f)]",targetX,targetY,targetZ);
+        return;
+    }
+
     /* Create coordinates in the Delta Arm Reference
     *   This conversion requires a 'rotation matrix' 
     *   to be applied to comply with Delta library coordinates.
@@ -144,18 +152,9 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
     *   y' = x*sin(theta) + y*cos(theta)
     * Based on our setup, theta = +60 degrees AND X and Y coordinates are switched
     */
-    float x_coord = (float)(targetX*(0.5) - ((-1.0)*targetY)*(0.866));
-    float y_coord = (float)(targetX*(0.866) + ((-1.0)*targetY)*(0.5));
-    // z = 0 IS AT THE GROUND (z = is always positive)
-    float z_coord = (float)(targetZ + soilOffset);
-
-    // IF cartesian coordinate are out of range
-    if (abs(x_coord) > cartesianLimitX ||
-        abs(y_coord) > cartesianLimitY)
-    {
-        ROS_ERROR("Current coordinates are out of range of delta arm [(x,y,z)=(%f,%f,%f)]",x_coord,y_coord,z_coord);
-        return;
-    }
+    float x_coord = (float)(targetY*(0.5) - (targetX)*(0.866));
+    float y_coord = (float)(targetY*(0.866) + (targetX)*(0.5));
+    float z_coord = (float)targetZ;    // z = 0 IS AT THE GROUND (z = is always positive)
 
     /* Calculate angles for Delta arm */
     robot_position(x_coord, y_coord, z_coord); 
@@ -174,7 +173,7 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
             return;
         }
 
-        ROS_INFO("Delta for coords (%.2f,%.2f,%.2f) [cm] -> (%i,%i,%i) [degrees]",
+        ROS_INFO("Delta for coords (%.1f,%.1f,%.1f) [cm] -> (%i,%i,%i) [degrees]",
                     targetX, targetY, targetZ, 
                     angle1Deg, angle2Deg, angle3Deg);
 
