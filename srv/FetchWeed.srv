@@ -1,8 +1,5 @@
 #request
 int32 caller
-bool do_uproot
-bool mark_uprooted
-int32 uprooted_id
 ---
 #response
 urVision/weedData weed

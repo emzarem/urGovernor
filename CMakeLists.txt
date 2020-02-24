@@ -29,6 +29,7 @@ add_service_files(
   srv
   FILES
   FetchWeed.srv
+  MarkUprooted.srv
   SerialWrite.srv
   SerialRead.srv
   KinematicsTest.srv

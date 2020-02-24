@@ -8,12 +8,14 @@
 
 // Srv and msg types
 #include <urGovernor/FetchWeed.h>
+#include <urGovernor/MarkUprooted.h>
 #include <urVision/weedDataArray.h>
 #include <urGovernor/SerialWrite.h>
 #include <urGovernor/SerialRead.h>
 
 // Parameters to read from configs
 std::string fetchWeedServiceName;
+std::string markUprootedServiceName;
 float overallRate;
 
 std::string serialServiceWriteName;
@@ -41,6 +43,8 @@ int serialTimeoutMs;
 bool readGeneralParameters(ros::NodeHandle nodeHandle)
 {
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
+    if (!nodeHandle.getParam("mark_uprooted_service", markUprootedServiceName)) return false;
+    
     if (!nodeHandle.getParam("controller_overall_rate", overallRate)) return false;
 
     if (!nodeHandle.getParam("rest_angle_1", restAngle1)) return false;
@@ -249,6 +253,12 @@ int main(int argc, char** argv)
     ros::service::waitForService(fetchWeedServiceName);
     urGovernor::FetchWeed fetchWeedSrv;
 
+    // Subscribe to second service from tracker
+    ros::ServiceClient markUprootedClient = nh.serviceClient<urGovernor::MarkUprooted>(markUprootedServiceName);
+    ros::service::waitForService(markUprootedServiceName);
+    urGovernor::MarkUprooted markUprootedSrv;
+
+
     /* Initializing Kinematics */
     // Set tool offset (tool id == 0, x, y, z )
     robot_tool_offset(0, 0, 0, 0);
@@ -263,14 +273,12 @@ int main(int argc, char** argv)
     }
 
     /* 
-     * Main loop for controller
+     * Main loop for urGovernor
      */
     ros::Rate loopRate(overallRate);
     while (ros::ok())
     {
         fetchWeedSrv.request.caller = 1;
-        fetchWeedSrv.request.do_uproot = true; // We are uprooting this weed
-        fetchWeedSrv.request.mark_uprooted = false; // It cannot be marked as uprooted *yet*
         // Call for a new weed
         if (fetchWeedClient.call(fetchWeedSrv))
         {
@@ -279,20 +287,17 @@ int main(int argc, char** argv)
             doUprootWeed(fetchWeedSrv.response.weed.x_cm, fetchWeedSrv.response.weed.y_cm, fetchWeedSrv.response.weed.z_cm);
 
             // Mark this weed as uprooted
-            fetchWeedSrv.request.do_uproot = false; // Do not get a new weed
-            fetchWeedSrv.request.mark_uprooted = true; // mark this weed we just uprooted as uprooted
-            fetchWeedSrv.request.uprooted_id = fetchWeedSrv.response.tracking_id;
-            
-            if (!fetchWeedClient.call(fetchWeedSrv))
+            markUprootedSrv.request.tracking_id = fetchWeedSrv.response.tracking_id;
+            if (!markUprootedClient.call(markUprootedSrv))
             {
-                ROS_ERROR("Controller -- Could not mark weed as uprooted (call to Tracker).");
+                ROS_ERROR("Governor -- Could not mark weed as uprooted (call to Tracker).");
             }
         }
         else
         {
             if (fetchWeedLogs % logFetchWeedInterval == 1)
             {
-                ROS_INFO("Controller -- no weeds are current.");
+                ROS_INFO("Governor -- no weeds are current.");
             }
             fetchWeedLogs++;
         }
