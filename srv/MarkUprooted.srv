@@ -1,5 +1,6 @@
 #request
 int32 tracking_id
+bool success
 ---
 #response
 int32 responder

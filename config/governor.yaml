@@ -6,20 +6,23 @@ serial_baud_rate: 115200
 serial_timeout_ms: 250
 
 # **MAX** Query rate of the controller to make service requests for new weeds [Hz]
-controller_overall_rate: 2
+controller_overall_rate: 0.75
 
 # Resting angle of the arms
 # System will be set to this angle on startup, and every time to do proper imaging
-rest_angle_1: 75
-rest_angle_2: 75
+rest_angle_1: 0
+rest_angle_2: 0
 rest_angle_3: 0
 
 # Limits of arm operation
 # First, check cartesian coordinate limits
-cartesian_limit_x: 30
-cartesian_limit_y: 40
+cartesian_limit_x_max: 30
+cartesian_limit_x_min: -30
+cartesian_limit_y_max: 25
+cartesian_limit_y_min: -40
+
 # Even if cartesian limits pass, check angle limits
-angle_limit: 85
+angle_limit: 90
 
 # Time for end-effector to perform its duties (in seconds)
 end_effector_time_s: 3

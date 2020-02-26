@@ -22,7 +22,8 @@ std::string serialServiceWriteName;
 std::string serialServiceReadName;
 
 int restAngle1, restAngle2, restAngle3;
-float cartesianLimitX, cartesianLimitY, angleLimit;
+float cartesianLimitXMax, cartesianLimitXMin, cartesianLimitYMax, cartesianLimitYMin;
+float angleLimit;
 
 const int relativeAngleFlag = false;
 
@@ -51,8 +52,11 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("rest_angle_2", restAngle2)) return false;
     if (!nodeHandle.getParam("rest_angle_3", restAngle3)) return false;
 
-    if (!nodeHandle.getParam("cartesian_limit_x", cartesianLimitX)) return false;
-    if (!nodeHandle.getParam("cartesian_limit_y", cartesianLimitY)) return false;
+    if (!nodeHandle.getParam("cartesian_limit_x_max", cartesianLimitXMax)) return false;
+    if (!nodeHandle.getParam("cartesian_limit_x_min", cartesianLimitXMin)) return false;
+    if (!nodeHandle.getParam("cartesian_limit_y_max", cartesianLimitYMax)) return false;
+    if (!nodeHandle.getParam("cartesian_limit_y_min", cartesianLimitYMin)) return false;
+
     if (!nodeHandle.getParam("angle_limit", angleLimit)) return false;
 
     if (!nodeHandle.getParam("end_effector_time_s", endEffectorTime)) return false;
@@ -67,9 +71,6 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     return true;
 }
 
-/* 
- * This is the main blocking call to set the arm position to the angles specified 
- */
 bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
 {
     urGovernor::SerialWrite serialWrite;
@@ -131,22 +132,54 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     return 0;
 }
 
+bool updateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
+{
+    urGovernor::SerialWrite serialWrite;
+    urGovernor::SerialRead serialRead;   
+    SerialUtils::CmdMsg msg = {0};
+    std::vector<char> buff;
+
+    msg.is_relative = relativeAngleFlag;
+    msg.m1_angle = angle1Deg;
+    msg.m2_angle = angle2Deg;
+    msg.m3_angle = angle3Deg;
+    msg.motors_done = 0;
+    
+    SerialUtils::pack(buff, msg);
+
+    serialWrite.request.command = std::string(buff.begin(), buff.end());
+
+    // Send angles to HAL (via calling the serial WRITE client)
+    if (serialWriteClient.call(serialWrite))
+    {
+        return true;
+    }
+    else
+    {
+        ROS_ERROR("Serial write to update motor angles was NOT successful.");
+    }
+    
+    return false;
+}
+
 /* This function does the physical actuation for 'uprooting' a weed
  *      This controls the strategy for going for a specific weed.
  * 
  */
-void doUprootWeed(float targetX, float targetY, float targetZ)
+bool doUprootWeed(float targetX, float targetY, float targetZ, float targetSize)
 {
     // Time this whole operation
     ros::WallTime start_, end_;
     start_ = ros::WallTime::now();
 
     // IF cartesian coordinate are out of range
-    if (abs(targetX) > cartesianLimitX ||
-        abs(targetY) > cartesianLimitY)
+    if (targetX > cartesianLimitXMax ||
+        targetX < cartesianLimitXMin ||
+        targetY > cartesianLimitYMax ||
+        targetY < cartesianLimitYMin )
     {
-        ROS_ERROR("Current coordinates are out of range of delta arm [(x,y,z)=(%.1f,%.1f,%.1f)]",targetX,targetY,targetZ);
-        return;
+        ROS_INFO("COORDS OUT OF RANGE of delta arm [(x,y,size)=(%.1f,%.1f,%.1f)]",targetX,targetY,targetSize);
+        return false;
     }
 
     /* Create coordinates in the Delta Arm Reference
@@ -158,7 +191,7 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
     */
     float x_coord = (float)(targetY*(0.5) - (targetX)*(0.866));
     float y_coord = (float)(targetY*(0.866) + (targetX)*(0.5));
-    float z_coord = (float)targetZ;    // z = 0 IS AT THE GROUND (z = is always positive)
+    float z_coord = (float)targetZ + soilOffset;    // z = 0 IS AT THE GROUND (z = is always positive)
 
     /* Calculate angles for Delta arm */
     robot_position(x_coord, y_coord, z_coord); 
@@ -173,8 +206,8 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
             angle2Deg > angleLimit ||
             angle3Deg > angleLimit)
         {
-            ROS_ERROR("Calculated angles are out of range of delta arm [(a1,a2,a3)=(%i,%i,%i)]",angle1Deg,angle2Deg,angle3Deg);
-            return;
+            ROS_ERROR("ANGLES OUT OF RANGE of delta arm [(a1,a2,a3)=(%i,%i,%i)]",angle1Deg,angle2Deg,angle3Deg);
+            return false;
         }
 
         ROS_INFO("Delta for coords (%.1f,%.1f,%.1f) [cm] -> (%i,%i,%i) [degrees]",
@@ -186,6 +219,7 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
         {
             ROS_ERROR("Could not bring arms to zero.");
             ros::requestShutdown();
+            return false;
         }
 
         // GO to our target
@@ -199,6 +233,7 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
             {
                 ROS_ERROR("Could not bring arms to zero.");
                 ros::requestShutdown();
+                return false;
             }
 
             // Back to resting position
@@ -206,9 +241,15 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
             {
                 ROS_ERROR("Could not Reset arm positions.");
                 ros::requestShutdown();
+                return false;
             }
 
             // That's it -- the weed is 'uprooted'
+            end_ = ros::WallTime::now();
+            double execution_time = (end_ - start_).toNSec() * 1e-6;
+            ROS_DEBUG_STREAM("Actuation time for weed (ms): " << execution_time);
+
+            return true;
         }
         else
         {
@@ -221,11 +262,7 @@ void doUprootWeed(float targetX, float targetY, float targetZ)
         ROS_ERROR("Could not get arm angles.");
     }
 
-    end_ = ros::WallTime::now();
-    double execution_time = (end_ - start_).toNSec() * 1e-6;
-    ROS_DEBUG_STREAM("Actuation time for weed (ms): " << execution_time);
-
-    return;
+    return false;
 }
 
 int main(int argc, char** argv)
@@ -272,6 +309,9 @@ int main(int argc, char** argv)
         ros::requestShutdown();
     }
 
+    // Sleep for a bit at start up to let vision pipeline get going
+    ros::Duration(5.0).sleep();
+
     /* 
      * Main loop for urGovernor
      */
@@ -284,10 +324,11 @@ int main(int argc, char** argv)
         {
             // UpRoot this weed!
             // This call will block until the arm is back in it's rest position
-            doUprootWeed(fetchWeedSrv.response.weed.x_cm, fetchWeedSrv.response.weed.y_cm, fetchWeedSrv.response.weed.z_cm);
+            markUprootedSrv.request.success = doUprootWeed(fetchWeedSrv.response.weed.x_cm, fetchWeedSrv.response.weed.y_cm, fetchWeedSrv.response.weed.z_cm, fetchWeedSrv.response.weed.size_cm);
 
             // Mark this weed as uprooted
             markUprootedSrv.request.tracking_id = fetchWeedSrv.response.tracking_id;
+
             if (!markUprootedClient.call(markUprootedSrv))
             {
                 ROS_ERROR("Governor -- Could not mark weed as uprooted (call to Tracker).");
