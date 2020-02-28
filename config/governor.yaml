@@ -5,8 +5,14 @@ serial_port: /dev/ttyTHS1
 serial_baud_rate: 115200
 serial_timeout_ms: 250
 
+# If this is true, do continuous update of position
+# Otherwise, just do static
+do_constant_tracking: true
+
 # **MAX** Query rate of the controller to make service requests for new weeds [Hz]
-controller_overall_rate: 0.75
+controller_overall_rate: 0.5
+
+init_sleep_time: 3.0
 
 # Resting angle of the arms
 # System will be set to this angle on startup, and every time to do proper imaging
