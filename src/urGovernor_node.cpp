@@ -27,6 +27,7 @@ float angleLimit;
 
 bool doConstantTracking;
 float initSleepTime;
+float actuationTimeOverride;
 
 const int relativeAngleFlag = false;
 
@@ -54,6 +55,7 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("controller_overall_rate", overallRate)) return false;
     if (!nodeHandle.getParam("do_constant_tracking", doConstantTracking)) return false;
     if (!nodeHandle.getParam("init_sleep_time", initSleepTime)) return false;
+    if (!nodeHandle.getParam("max_actuation_time_override", actuationTimeOverride)) return false;
 
     if (!nodeHandle.getParam("rest_angle_1", restAngle1)) return false;
     if (!nodeHandle.getParam("rest_angle_2", restAngle2)) return false;
@@ -169,6 +171,22 @@ bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     }
 }
 
+// Starts the end effector actuation
+void startEndEffector()
+{
+    // TODO: send command to teensy to start end effector!
+    ROS_INFO("START end effector.");
+    return;
+}
+
+// Stops the end effector actuation
+void stopEndEffector()
+{
+    // TODO: send command to teensy to stop end effector!
+    ROS_INFO("STOP end effector.");
+    return;
+}
+
 // Check for callback from motors
 bool checkMotorsDone()
 {
@@ -194,9 +212,8 @@ bool checkMotorsDone()
     return false;
 }
 
-/* This function does the physical actuation for 'uprooting' a weed
- *      This controls the strategy for going for a specific weed.
- * 
+/* This function performs the function of 'uprooting' a weed
+ *      This function polls the tracker to update the location of the weed
  */
 bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
 {
@@ -206,67 +223,28 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
     int tracking_id = fetchWeedSrv.response.tracking_id;
 
     // Time this whole operation
-    ros::WallTime start_, end_;
-    start_ = ros::WallTime::now();
+    ros::WallTime startActuation, startUproot;
+    double timeDelta = 0;
+    bool weedReached = false;
 
-    // TODO: Do we need this?
-    // First, come up to 0
-    if (!actuateArmAngles(0, 0, 0))
-    {
-        ROS_ERROR("Could not bring arms to zero.");
-        ros::requestShutdown();
-        return false;
-    }
+    startActuation = ros::WallTime::now();
 
     // Do a continual update on the weeds location
     ros::Rate loopRate(overallRate);
     while (ros::ok())
     {
-        // IF the arm has reached it's position
-        if (checkMotorsDone())
+        // Get the most recent coordinates
+        if (!fetchWeedClient.call(fetchWeedSrv))
         {
-            // Wait for end-effectors
-            ros::Duration(endEffectorTime).sleep();
-
-            // Back up to 0
-            if (!actuateArmAngles(0, 0, 0))
-            {
-                ROS_ERROR("Could not bring arms to zero.");
-                ros::requestShutdown();
-                return false;
-            }
-
-            // Back to resting position
-            if (!actuateArmAngles(restAngle1, restAngle2, restAngle3))
-            {
-                ROS_ERROR("Could not Reset arm positions.");
-                ros::requestShutdown();
-                return false;
-            }
-
-            // That's it -- the weed is 'uprooted'
-            end_ = ros::WallTime::now();
-            double execution_time = (end_ - start_).toNSec() * 1e-6;
-            ROS_DEBUG_STREAM("Actuation time for weed (ms): " << execution_time);
-
-            return true;
+            // IF we lost the weed, return false
+            return false;
         }
-        // Otherwise, call fetchWeed to update the coordinates!
-        else
+    
+        // IF response has a different tracking_id, return false
+        if(fetchWeedSrv.response.tracking_id != tracking_id)
         {
-            // Make another call to fetchWeed to update the coordinates
-            if (!fetchWeedClient.call(fetchWeedSrv))
-            {
-                // If we lost the weed, return false
-                return false;
-            }
-        
-            // IF response has a different tracking_id, return false
-            if(fetchWeedSrv.response.tracking_id != tracking_id)
-            {
-                return false;
-            }
-        }   
+            return false;
+        }
 
         //// Process the current coordinates
         float targetX = fetchWeedSrv.response.weed.x_cm;
@@ -310,16 +288,16 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
             return false;
         }
 
-        // If any of the angles have changed
+        // If any of the angles have changed, make call to update the arm angles
         if (angle1Deg != oldAngle1 ||
             angle2Deg != oldAngle2 ||
             angle3Deg != oldAngle3)
-        {     
+        {
             oldAngle1 = angle1Deg;
             oldAngle2 = angle2Deg;
             oldAngle3 = angle3Deg;
 
-            ROS_INFO("UPDATE coords (%.1f,%.1f,%.1f) [cm] -> (%i,%i,%i) [degrees]",
+            ROS_INFO("UPDATE weed @ (%.1f,%.1f,%.1f) [cm] -> (%i,%i,%i) [degrees]",
                 targetX, targetY, targetZ, 
                 angle1Deg, angle2Deg, angle3Deg);
 
@@ -332,6 +310,54 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
             }
         }
 
+        // IF weed has been reached by the arm
+        if(weedReached)
+        {
+            timeDelta = (ros::WallTime::now() - startUproot).toSec();
+            if (timeDelta >= endEffectorTime)
+            {
+                // Stop endEffector
+                stopEndEffector();
+
+                // Back up to 0
+                if (!actuateArmAngles(0, 0, 0))
+                {
+                    ROS_ERROR("Could not bring arms to zero.");
+                    ros::requestShutdown();
+                    return false;
+                }
+
+                // Back to resting position
+                if (!actuateArmAngles(restAngle1, restAngle2, restAngle3))
+                {
+                    ROS_ERROR("Could not Reset arm positions.");
+                    ros::requestShutdown();
+                    return false;
+                }
+
+                return true;
+            }
+        }
+        // ELSE if we haven't set our flag but the motors are done their current motion
+        else if (!weedReached && checkMotorsDone())
+        {
+            weedReached = true;
+            startEndEffector();
+            startUproot = ros::WallTime::now();
+        }
+        // ELSE
+        else
+        {
+            timeDelta = (ros::WallTime::now() - startActuation).toSec();
+            // Override if we've hit our actuation time override
+            if (timeDelta >= actuationTimeOverride)
+            {
+                weedReached = true;
+                startEndEffector();
+                startUproot = ros::WallTime::now();
+            }
+        }
+
         // After send the arm angle update, sleep for the loop rate
         loopRate.sleep();
     }
@@ -339,12 +365,115 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
     return false;
 }
 
-/* This function does the physical actuation for 'uprooting' a weed
- *      This controls the strategy for going for a specific weed.
- * 
+/* This function performs the function of 'uprooting' a weed
+ *      This function does not update the weed location during actuation
  */
 bool doStaticUproot(urGovernor::FetchWeed& fetchWeedSrv)
 {
+    //// Process the current coordinates
+    float targetX = fetchWeedSrv.response.weed.x_cm;
+    float targetY = fetchWeedSrv.response.weed.y_cm;
+    float targetZ = fetchWeedSrv.response.weed.z_cm;
+    float targetSize = fetchWeedSrv.response.weed.size_cm;
+
+    // Time this whole operation
+    ros::WallTime start_, end_;
+    start_ = ros::WallTime::now();
+
+    // IF cartesian coordinate are out of range
+    if (targetX > cartesianLimitXMax ||
+        targetX < cartesianLimitXMin ||
+        targetY > cartesianLimitYMax ||
+        targetY < cartesianLimitYMin )
+    {
+        ROS_INFO("COORDS OUT OF RANGE of delta arm [(x,y,size)=(%.1f,%.1f,%.1f)]",targetX,targetY,targetSize);
+        return false;
+    }
+
+    /* Create coordinates in the Delta Arm Reference
+    *   This conversion requires a 'rotation matrix' 
+    *   to be applied to comply with Delta library coordinates.
+    *   x' = x*cos(theta) - y*sin(theta)
+    *   y' = x*sin(theta) + y*cos(theta)
+    * Based on our setup, theta = +60 degrees AND X and Y coordinates are switched
+    */
+    float x_coord = (float)(targetY*(0.5) - (targetX)*(0.866));
+    float y_coord = (float)(targetY*(0.866) + (targetX)*(0.5));
+    float z_coord = (float)targetZ + soilOffset;    // z = 0 IS AT THE GROUND (z = is always positive)
+
+    /* Calculate angles for Delta arm */
+    robot_position(x_coord, y_coord, z_coord); 
+
+    int angle1Deg,angle2Deg,angle3Deg;
+
+    // Get the resulting angles from kinematics
+    if (getArmAngles(&angle1Deg, &angle2Deg, &angle3Deg))
+    {
+        // IF calculated angles are out of range
+        if (angle1Deg > angleLimit ||
+            angle2Deg > angleLimit ||
+            angle3Deg > angleLimit)
+        {
+            ROS_ERROR("ANGLES OUT OF RANGE of delta arm [(a1,a2,a3)=(%i,%i,%i)]",angle1Deg,angle2Deg,angle3Deg);
+            return false;
+        }
+
+        ROS_INFO("STATIC weed @ (%.1f,%.1f,%.1f) [cm] -> (%i,%i,%i) [degrees]",
+                    targetX, targetY, targetZ, 
+                    angle1Deg, angle2Deg, angle3Deg);
+
+        // First, come up to 0. This ensures we don't hit anything on the way
+        if (!actuateArmAngles(0, 0, 0))
+        {
+            ROS_ERROR("Could not bring arms to zero.");
+            ros::requestShutdown();
+            return false;
+        }
+
+        // GO to our target
+        if (actuateArmAngles(angle1Deg, angle2Deg, angle3Deg))
+        {
+            startEndEffector();
+            
+            // Wait for end-effectors
+            ros::Duration(endEffectorTime).sleep();
+            
+            stopEndEffector();
+
+            // Back up to 0
+            if (!actuateArmAngles(0, 0, 0))
+            {
+                ROS_ERROR("Could not bring arms to zero.");
+                ros::requestShutdown();
+                return false;
+            }
+
+            // Back to resting position
+            if (!actuateArmAngles(restAngle1, restAngle2, restAngle3))
+            {
+                ROS_ERROR("Could not Reset arm positions.");
+                ros::requestShutdown();
+                return false;
+            }
+
+            // That's it -- the weed is 'uprooted'
+            end_ = ros::WallTime::now();
+            double execution_time = (end_ - start_).toNSec() * 1e-6;
+            ROS_DEBUG_STREAM("Actuation time for weed (ms): " << execution_time);
+
+            return true;
+        }
+        else
+        {
+            ROS_ERROR("Could not actuate motors to specified arm angles");
+            ros::requestShutdown();
+        }
+    }
+    else
+    {
+        ROS_ERROR("Could not get arm angles.");
+    }
+
     return false;
 }
 
@@ -406,13 +535,6 @@ int main(int argc, char** argv)
         // IF we do get a new weed
         if (fetchWeedClient.call(fetchWeedSrv))
         {
-            ROS_INFO("urGovernor -- WEED @ (%.1f,%.1f,%.1f) [cm]",
-                    fetchWeedSrv.response.weed.x_cm, fetchWeedSrv.response.weed.y_cm, fetchWeedSrv.response.weed.z_cm);
-
-            // UpRoot this weed!
-            // This call will block until the arm is back in it's rest position
-            // This call will 
-
             if (doConstantTracking)
             {
                 // This call will do a continual update uproot

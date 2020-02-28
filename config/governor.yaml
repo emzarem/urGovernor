@@ -10,9 +10,14 @@ serial_timeout_ms: 250
 do_constant_tracking: true
 
 # **MAX** Query rate of the controller to make service requests for new weeds [Hz]
-controller_overall_rate: 0.5
+controller_overall_rate: 2.5
 
 init_sleep_time: 3.0
+
+# Maximum time for arm actuation
+max_actuation_time_override: 1.5
+# Time for end-effector to perform its duties (in seconds)
+end_effector_time_s: 1.5
 
 # Resting angle of the arms
 # System will be set to this angle on startup, and every time to do proper imaging
@@ -29,9 +34,6 @@ cartesian_limit_y_min: -40
 
 # Even if cartesian limits pass, check angle limits
 angle_limit: 90
-
-# Time for end-effector to perform its duties (in seconds)
-end_effector_time_s: 3
 
 # Change this depending on how far in / to the soil we awant to go
 soil_offset: 5 # offset of soil (cm)
