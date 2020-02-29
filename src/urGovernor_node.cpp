@@ -28,6 +28,7 @@ float angleLimit;
 bool doConstantTracking;
 float initSleepTime;
 float actuationTimeOverride;
+int minUpdateAngle;
 
 const int relativeAngleFlag = false;
 
@@ -56,6 +57,8 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("do_constant_tracking", doConstantTracking)) return false;
     if (!nodeHandle.getParam("init_sleep_time", initSleepTime)) return false;
     if (!nodeHandle.getParam("max_actuation_time_override", actuationTimeOverride)) return false;
+    if (!nodeHandle.getParam("min_update_angle", minUpdateAngle)) return false;
+
 
     if (!nodeHandle.getParam("rest_angle_1", restAngle1)) return false;
     if (!nodeHandle.getParam("rest_angle_2", restAngle2)) return false;
@@ -179,7 +182,7 @@ void startEndEffector()
     return;
 }
 
-// Stops the end effector actuation
+// Stops the end effector actuation 
 void stopEndEffector()
 {
     // TODO: send command to teensy to stop end effector!
@@ -237,12 +240,14 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
         if (!fetchWeedClient.call(fetchWeedSrv))
         {
             // IF we lost the weed, return false
+            ROS_INFO("Constant Tracking LOST the weed (no weeds available).\n");
             return false;
         }
     
         // IF response has a different tracking_id, return false
         if(fetchWeedSrv.response.tracking_id != tracking_id)
         {
+            ROS_INFO("Constant Tracking LOST the weed (different tracking id).\n");
             return false;
         }
 
@@ -289,9 +294,9 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
         }
 
         // If any of the angles have changed, make call to update the arm angles
-        if (angle1Deg != oldAngle1 ||
-            angle2Deg != oldAngle2 ||
-            angle3Deg != oldAngle3)
+        if (abs(angle1Deg - oldAngle1) > minUpdateAngle ||
+            abs(angle2Deg - oldAngle2) > minUpdateAngle ||
+            abs(angle3Deg - oldAngle3) > minUpdateAngle)
         {
             oldAngle1 = angle1Deg;
             oldAngle2 = angle2Deg;
