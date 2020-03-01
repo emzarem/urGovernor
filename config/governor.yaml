@@ -14,11 +14,11 @@ do_constant_tracking: true
 # Maximum time for arm actuation
 max_actuation_time_override: 3.0
 # Time for end-effector to perform its duties (in seconds)
-end_effector_time_s: 3.0
+end_effector_time_s: 2.5
 # Minimum difference in angles to update Teensy with
 min_update_angle: 1
 
-init_sleep_time: 3.0
+init_sleep_time: 4.0
 
 # Resting angle of the arms
 # System will be set to this angle on startup, and every time to do proper imaging

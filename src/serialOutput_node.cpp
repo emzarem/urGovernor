@@ -44,6 +44,8 @@ bool serialWrite(urGovernor::SerialWrite::Request &req, urGovernor::SerialWrite:
 // Serial Read service (called by controller to sychronize end of motor movement)
 bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Response &res)
 {
+    bool retValue = false;
+
     while (ser.available())
     {
         std::string response = ser.readline();
@@ -62,11 +64,11 @@ bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Re
 
         ROS_DEBUG_STREAM("Reading from serial: " << std::endl << std::string(cmdMsg));
 
-        return true;
+        retValue = true;
     }
     
     // Otherwise we timed out!
-    return false;
+    return retValue;
 }
 
 // General parameters for this node
