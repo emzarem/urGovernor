@@ -48,6 +48,8 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     std::vector<char> buff;
     SerialUtils::pack(buff, msg);
 
+    SerialUtils::CmdMsg ret_msg;
+
     ROS_INFO("Setting angles: %d %d %d", msg.mtr_angles[0], msg.mtr_angles[1],msg.mtr_angles[2]);
 
     serialWrite.request.command = std::string(buff.begin(), buff.end());
@@ -56,7 +58,11 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     if (serialWriteClient.call(serialWrite))
     {
         ros::Rate loopRate( 1.0 / (serialTimeoutMs / 1000.0));
-        while (ros::ok())
+       
+        ros::WallTime start_time = ros::WallTime::now();
+        double timeout = 2;
+
+        while (ros::ok() && (ros::WallTime::now()- start_time).toSec() < timeout )
         {
             // Wait for arm done
             // This is done by calling the serial READ client
@@ -65,22 +71,17 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
             {
                 std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
                 
-                msg.cmd_success = 0;
+                ret_msg.cmd_success = 0;
                 // Unpack response from read
-                SerialUtils::unpack(v, msg);
+                SerialUtils::unpack(v, ret_msg);
 
-                ROS_INFO("Heres the return msg: %s" , std::string(msg));
+                ROS_INFO("Heres the return msg: %s" , std::string(ret_msg));
 
                 // This should indicate that we are done
-                if (msg.cmd_type == SerialUtils::CMDTYPE_RESP && msg.cmd_success)
+                if (ret_msg == msg && ret_msg.cmd_success)
                 {
                     ROS_INFO("Motor callback received.");
                     return 1;
-                }
-                else 
-                {
-                    ROS_ERROR("Motors did not return with (motors_done == true)");
-                    return 0;
                 }
             }
             else
@@ -89,6 +90,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
             }
             loopRate.sleep();
         }
+        ROS_ERROR("Timed out on response from teensy");
     }
     else
     {

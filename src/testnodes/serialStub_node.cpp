@@ -31,7 +31,7 @@ bool serialWrite(urGovernor::SerialWrite::Request &req, urGovernor::SerialWrite:
 // Serial Read service (called by controller to sychronize end of motor movement)
 bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Response &res)
 {
-    SerialUtils::CmdMsg msg = { .cmd_type = SerialUtils::CMDTYPE_RESP };
+    SerialUtils::CmdMsg msg = { .cmd_type = SerialUtils::CMDTYPE_MTRS };
     msg.cmd_success = 1;
     std::vector<char> buff;
 

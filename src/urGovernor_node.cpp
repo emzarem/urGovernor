@@ -101,7 +101,7 @@ bool sendCmd(SerialUtils::CmdMsg msg)
 }
 
 // Check for callback from motors
-bool checkSuccess()
+bool checkSuccess(SerialUtils::CmdMsg exp_msg)
 {
     urGovernor::SerialRead serialRead;   
     SerialUtils::CmdMsg msg;
@@ -116,7 +116,7 @@ bool checkSuccess()
         SerialUtils::unpack(v, msg);
 
         // Check if we are done
-        if (msg.cmd_type == SerialUtils::CMDTYPE_RESP && msg.cmd_success)
+        if (msg == exp_msg && msg.cmd_success)
         {
             return true;
         }
@@ -128,7 +128,7 @@ bool checkSuccess()
 
 
 // Wait for success
-bool waitSuccess()
+bool waitSuccess(SerialUtils::CmdMsg exp_msg)
 {
     urGovernor::SerialRead serialRead;
     SerialUtils::CmdMsg msg;
@@ -141,7 +141,7 @@ bool waitSuccess()
         // Wait for arm done
         // This is done by calling the serial READ client
         // This should block until we get a CmdMsg FROM the serial line
-        if (checkSuccess()) {
+        if (checkSuccess(exp_msg)) {
             ROS_DEBUG("Teensy callback received.");
             return true;
         }
@@ -155,15 +155,10 @@ bool waitSuccess()
             SerialUtils::unpack(v, msg);
 
             // This should indicate that we are done
-            if (msg.cmd_type == SerialUtils::CMDTYPE_RESP && msg.cmd_success)
+            if (msg == exp_msg && msg.cmd_success)
             {
                 ROS_DEBUG("Teensy callback received.");
                 return true;
-            }
-            else 
-            {
-                ROS_ERROR("Teensy did not return with (cmd_success == true)");
-                return false;
             }
         }
         else
@@ -179,7 +174,7 @@ bool waitSuccess()
 
 
 // Single set point, updates only, returns immediately
-bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
+bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg, SerialUtils::CmdMsg* p_msg = NULL)
 {
     urGovernor::SerialWrite serialWrite;
     // Pack message
@@ -192,6 +187,7 @@ bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     // Send angles to HAL (via calling the serial WRITE client)
     if (sendCmd(msg))
     {
+        *p_msg = msg;
         return true;
     }
     else
@@ -205,16 +201,17 @@ bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
 bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg, bool calibrate=false)
 {
     bool sent = false;
+    SerialUtils::CmdMsg msg;
     if (calibrate) {
-        SerialUtils::CmdMsg msg = { .cmd_type = SerialUtils::CMDTYPE_CAL };
+        msg.cmd_type;
         sent = sendCmd(msg);
     } else {
-        sent = sendArmAngles(angle1Deg, angle2Deg, angle3Deg);
+        sent = sendArmAngles(angle1Deg, angle2Deg, angle3Deg, &msg);
     }
     
     if (sent)
     {
-        return waitSuccess();
+        return waitSuccess(msg);
     }
 }
 
@@ -229,7 +226,7 @@ bool startEndEffector()
     endEffectorRunning = true;
     SerialUtils::CmdMsg msg = { .cmd_type = SerialUtils::CMDTYPE_ENDEFF_ON };
     sendCmd(msg);
-    if (!waitSuccess()) {
+    if (!waitSuccess(msg)) {
         ROS_ERROR("Unable to start end effector.");
         return false;
     }
@@ -247,7 +244,7 @@ bool stopEndEffector()
     endEffectorRunning = false;
     SerialUtils::CmdMsg msg = { .cmd_type = SerialUtils::CMDTYPE_ENDEFF_OFF };
     sendCmd(msg);
-    if (!waitSuccess()) {
+    if (!waitSuccess(msg)) {
         ROS_ERROR("Unable to stop end effector.");
         return false;
     }
@@ -278,6 +275,9 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
     bool retValue = false;
     // Do a continual update on the weeds location
     ros::Rate loopRate(overallRate);
+    
+    SerialUtils::CmdMsg last_msg;
+    bool command_sent = false;
 
     // Main Loop for constant tracking
     while (ros::ok() && keepGoing)
@@ -358,13 +358,15 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
                             angle1Deg, angle2Deg, angle3Deg);
 
                         // Update the arm angles
-                        if (!sendArmAngles(angle1Deg, angle2Deg, angle3Deg))
+                        if (!sendArmAngles(angle1Deg, angle2Deg, angle3Deg, &last_msg))
                         {
                             // This is a Fatal issue ...
                             ROS_ERROR("Could not actuate motors to specified arm angles");
                             ros::requestShutdown();
 
                             keepGoing = false;
+                        } else {
+                            command_sent = true;
                         }
                     }
                 }
@@ -382,7 +384,7 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
             }
         }
         // ELSE if we haven't set our flag but the motors are done their current motion
-        else if (!weedReached && checkSuccess())
+        else if (!weedReached && command_sent && checkSuccess(last_msg))
         {
             weedReached = true;
             retValue = true;
