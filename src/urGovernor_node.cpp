@@ -134,9 +134,9 @@ bool waitSuccess()
     SerialUtils::CmdMsg msg;
 
     ros::Rate loopRate( 1.0 / (serialTimeoutMs / 1000.0));
-    ros::Time start_time = ros::Time::now();
-    ros::Duration timeout(commandTimeoutSec);
-    while (ros::ok() && ros::Time::now()- start_time < timeout)
+    ros::WallTime start_time = ros::WallTime::now();
+    double timeout = commandTimeoutSec;
+    while (ros::ok() && (ros::WallTime::now()- start_time).toSec() < timeout)
     {
         // Wait for arm done
         // This is done by calling the serial READ client
@@ -275,7 +275,7 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
     startActuation = ros::WallTime::now();
 
     bool keepGoing = true;
-    bool retValue = true;
+    bool retValue = false;
     // Do a continual update on the weeds location
     ros::Rate loopRate(overallRate);
 
@@ -286,7 +286,6 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
         if (!fetchWeedClient.call(fetchWeedSrv))
         {
             keepGoing = false;
-            retValue = false;
         }
         else
         {
@@ -294,7 +293,6 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
             if(fetchWeedSrv.response.tracking_id != tracking_id)
             {
                 keepGoing = false;
-                retValue = false;
             }
             else
             {
@@ -317,7 +315,6 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
                     }
                     // We are out of range!
                     keepGoing = false;
-                    retValue = false;
                 }
                 else
                 {
@@ -344,9 +341,8 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
                         angle2Deg > angleLimit ||
                         angle3Deg > angleLimit)
                     {
-                        ROS_ERROR("ANGLES OUT OF RANGE of delta arm [(a1,a2,a3)=(%i,%i,%i)]",angle1Deg,angle2Deg,angle3Deg);
+                        ROS_INFO("ANGLES OUT OF RANGE of delta arm [(a1,a2,a3)=(%i,%i,%i)]",angle1Deg,angle2Deg,angle3Deg);
                         keepGoing = false;
-                        retValue = false;    
                     }
                     // ELSE if any of the angles have changed, make call to update the arm angles
                     else if(abs(angle1Deg - oldAngle1) > minUpdateAngle ||
@@ -369,7 +365,6 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
                             ros::requestShutdown();
 
                             keepGoing = false;
-                            retValue = false;
                         }
                     }
                 }
@@ -384,13 +379,13 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
             {
                 stopEndEffector();
                 keepGoing = false;
-                retValue = true;
             }
         }
         // ELSE if we haven't set our flag but the motors are done their current motion
         else if (!weedReached && checkSuccess())
         {
             weedReached = true;
+            retValue = true;
             startEndEffector();
             startUproot = ros::WallTime::now();
         }
@@ -402,6 +397,7 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
             if (timeDelta >= actuationTimeOverride)
             {
                 weedReached = true;
+                retValue = true;
                 startEndEffector();
                 startUproot = ros::WallTime::now();
             }
@@ -415,12 +411,12 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
     stopEndEffector();
 
     // Back up to 0
-    if (!actuateArmAngles(0, 0, 0, true))
-    {
-        ROS_ERROR("Could not bring arms to zero.");
-        ros::requestShutdown();
-        retValue = false;
-    }
+    // if (!actuateArmAngles(0, 0, 0, true))
+    // {
+    //     ROS_ERROR("Could not bring arms to zero.");
+    //     ros::requestShutdown();
+    //     retValue = false;
+    // }
 
     // Back to resting position
     if (!actuateArmAngles(restAngle1, restAngle2, restAngle3))
@@ -583,7 +579,7 @@ int main(int argc, char** argv)
     deltarobot_setup();
 
     // SET arms to initial position
-    if (!actuateArmAngles(restAngle1, restAngle2, restAngle3))
+    if (!actuateArmAngles(restAngle1, restAngle2, restAngle3, true))
     {
         ROS_ERROR("Could not Initialize arm positions.");
         ros::requestShutdown();
