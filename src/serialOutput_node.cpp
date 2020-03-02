@@ -28,7 +28,7 @@ bool serialWrite(urGovernor::SerialWrite::Request &req, urGovernor::SerialWrite:
     std::string string_msg = req.command;
 
     std::vector<char> v(req.command.begin(), req.command.end());
-    SerialUtils::CmdMsg cmdMsg = {0};
+    SerialUtils::CmdMsg cmdMsg;
     // Unpack response from read
     SerialUtils::unpack(v, cmdMsg);
 
@@ -58,7 +58,7 @@ bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Re
 
         res.command = response;
         std::vector<char> v(res.command.begin(), res.command.end());
-        SerialUtils::CmdMsg cmdMsg = {0};
+        SerialUtils::CmdMsg cmdMsg;
         // Unpack response from read
         SerialUtils::unpack(v, cmdMsg);
 

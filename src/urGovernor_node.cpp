@@ -36,6 +36,7 @@ int soilOffset = 0;
 
 // Time to actuate end-effector
 double endEffectorTime = 0;
+bool endEffectorRunning = false;
 
 // Connections to Serial interface services
 ros::ServiceClient serialWriteClient;
@@ -46,6 +47,7 @@ ros::ServiceClient markUprootedClient;
 const int logFetchWeedInterval = 5;
 
 int serialTimeoutMs;
+int commandTimeoutSec;
 
 // General parameters for this node
 bool readGeneralParameters(ros::NodeHandle nodeHandle)
@@ -79,91 +81,116 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("serial_input_service", serialServiceReadName)) return false;
 
     if (!nodeHandle.getParam("serial_timeout_ms", serialTimeoutMs)) return false;
-    
+    if (!nodeHandle.getParam("command_timeout_sec", commandTimeoutSec)) return false;
+   
     return true;
 }
 
-// Single set point, blocks until it has been reached
-bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
+// Send CmdMsg over serial
+bool sendCmd(SerialUtils::CmdMsg msg)
 {
     urGovernor::SerialWrite serialWrite;
-    urGovernor::SerialRead serialRead;   
-    SerialUtils::CmdMsg msg = {0};
+    // Pack message
     std::vector<char> buff;
-
-    msg.is_relative = relativeAngleFlag;
-    msg.m1_angle = angle1Deg;
-    msg.m2_angle = angle2Deg;
-    msg.m3_angle = angle3Deg;
-    msg.motors_done = 0;
-    
     SerialUtils::pack(buff, msg);
 
     serialWrite.request.command = std::string(buff.begin(), buff.end());
 
     // Send angles to HAL (via calling the serial WRITE client)
-    if (serialWriteClient.call(serialWrite))
-    {
-        ros::Rate loopRate( 1.0 / (serialTimeoutMs / 1000.0));
-        while (ros::ok())
-        {
-            // Wait for arm done
-            // This is done by calling the serial READ client
-            // This should block until we get a CmdMsg FROM the serial line
-            if (serialReadClient.call(serialRead))
-            {
-                std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
-                
-                msg.motors_done = 0;
-                // Unpack response from read
-                SerialUtils::unpack(v, msg);
+    return serialWriteClient.call(serialWrite);
+}
 
-                // This should indicate that we are done
-                if (msg.motors_done)
-                {
-                    ROS_INFO("Motor callback received.");
-                    return 1;
-                }
-                else 
-                {
-                    ROS_ERROR("Motors did not return with (motors_done == true)");
-                    return 0;
-                }
-            }
-            else
-            {
-                ROS_DEBUG("Timed out waiting for response from Teensy ... retrying ...");
-            }
-            loopRate.sleep();
+// Check for callback from motors
+bool checkSuccess()
+{
+    urGovernor::SerialRead serialRead;   
+    SerialUtils::CmdMsg msg;
+
+    // Try to read on serial
+    if (serialReadClient.call(serialRead))
+    {
+        std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
+        
+        msg.cmd_success = 0;
+        // Unpack response from read
+        SerialUtils::unpack(v, msg);
+
+        // Check if we are done
+        if (msg.cmd_type == SerialUtils::CMDTYPE_RESP && msg.cmd_success)
+        {
+            return true;
         }
     }
-    else
-    {
-        ROS_ERROR("Serial write to set motors was NOT successful.");
-    }
-    
-    return 0;
+
+    return false;
 }
+
+
+
+// Wait for success
+bool waitSuccess()
+{
+    urGovernor::SerialRead serialRead;
+    SerialUtils::CmdMsg msg;
+
+    ros::Rate loopRate( 1.0 / (serialTimeoutMs / 1000.0));
+    ros::Time start_time = ros::Time::now();
+    ros::Duration timeout(commandTimeoutSec);
+    while (ros::ok() && ros::Time::now()- start_time < timeout)
+    {
+        // Wait for arm done
+        // This is done by calling the serial READ client
+        // This should block until we get a CmdMsg FROM the serial line
+        if (checkSuccess()) {
+            ROS_INFO("Teensy callback received.");
+            return true;
+        }
+
+        if (serialReadClient.call(serialRead))
+        {
+            std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
+            
+            msg.cmd_success = 0;
+            // Unpack response from read
+            SerialUtils::unpack(v, msg);
+
+            // This should indicate that we are done
+            if (msg.cmd_type == SerialUtils::CMDTYPE_RESP && msg.cmd_success)
+            {
+                ROS_INFO("Teensy callback received.");
+                return true;
+            }
+            else 
+            {
+                ROS_ERROR("Teensy did not return with (cmd_success == true)");
+                return false;
+            }
+        }
+        else
+        {
+            ROS_DEBUG("No response from Teensy ... retrying ...");
+        }
+        loopRate.sleep();
+    }
+
+    ROS_ERROR("Timed out waiting for response from Teensy");
+    return false;
+}
+
 
 // Single set point, updates only, returns immediately
 bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
 {
     urGovernor::SerialWrite serialWrite;
-    SerialUtils::CmdMsg msg = {0};
-    std::vector<char> buff;
-
-    msg.is_relative = relativeAngleFlag;
-    msg.m1_angle = angle1Deg;
-    msg.m2_angle = angle2Deg;
-    msg.m3_angle = angle3Deg;
-    msg.motors_done = 0;
-    
-    SerialUtils::pack(buff, msg);
-
-    serialWrite.request.command = std::string(buff.begin(), buff.end());
-
+    // Pack message
+    SerialUtils::CmdMsg msg = {
+        .cmd_type = SerialUtils::CMDTYPE_MTRS,
+        .is_relative = relativeAngleFlag,
+        .mtr_angles = {angle1Deg, angle2Deg, angle3Deg},
+        .cmd_success = 0
+    };
     // Send angles to HAL (via calling the serial WRITE client)
-    if (serialWriteClient.call(serialWrite))
+    if (sendCmd(msg))
     {
         return true;
     }
@@ -174,53 +201,58 @@ bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     }
 }
 
-bool endEffectorRunning = false;
+// Single set point, blocks until it has been reached
+bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg, bool calibrate=false)
+{
+    bool sent = false;
+    if (calibrate) {
+        SerialUtils::CmdMsg msg = { .cmd_type = SerialUtils::CMDTYPE_CAL };
+        sent = sendCmd(msg);
+    } else {
+        sent = sendArmAngles(angle1Deg, angle2Deg, angle3Deg);
+    }
+    
+    if (sent)
+    {
+        return waitSuccess();
+    }
+}
+
 
 // Starts the end effector actuation
-void startEndEffector()
+bool startEndEffector()
 {
-    if (!endEffectorRunning)
-    {
-        endEffectorRunning = true;
-        ROS_INFO("START end effector.");
+    if (endEffectorRunning)
+        return true;
+        
+    ROS_INFO("START end effector.");
+    endEffectorRunning = true;
+    SerialUtils::CmdMsg msg = { .cmd_type = SerialUtils::CMDTYPE_ENDEFF_ON };
+    sendCmd(msg);
+    if (!waitSuccess()) {
+        ROS_ERROR("Unable to start end effector.");
+        return false;
     }
-    return;
+    
+    return true;
 }
 
 // Stops the end effector actuation 
-void stopEndEffector()
+bool stopEndEffector()
 {
-    if (endEffectorRunning)
-    {
-        ROS_INFO("STOP end effector.");
-        endEffectorRunning = false;
-    }
-    return;
-}
-
-// Check for callback from motors
-bool checkMotorsDone()
-{
-    urGovernor::SerialRead serialRead;   
-    SerialUtils::CmdMsg msg = {0};
-
-    // Try to read on serial
-    if (serialReadClient.call(serialRead))
-    {
-        std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
+    if (!endEffectorRunning)
+        return true;
         
-        msg.motors_done = 0;
-        // Unpack response from read
-        SerialUtils::unpack(v, msg);
-
-        // Check if we are done
-        if (msg.motors_done)
-        {
-            return true;
-        }
+    ROS_INFO("STOP end effector.");
+    endEffectorRunning = true;
+    SerialUtils::CmdMsg msg = { .cmd_type = SerialUtils::CMDTYPE_ENDEFF_OFF };
+    sendCmd(msg);
+    if (!waitSuccess()) {
+        ROS_ERROR("Unable to stop end effector.");
+        return false;
     }
-
-    return false;
+    
+    return true;
 }
 
 /* This function performs the function of 'uprooting' a weed
@@ -357,7 +389,7 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
             }
         }
         // ELSE if we haven't set our flag but the motors are done their current motion
-        else if (!weedReached && checkMotorsDone())
+        else if (!weedReached && checkSuccess())
         {
             weedReached = true;
             startEndEffector();
@@ -384,7 +416,7 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
     stopEndEffector();
 
     // Back up to 0
-    if (!actuateArmAngles(0, 0, 0))
+    if (!actuateArmAngles(0, 0, 0, true))
     {
         ROS_ERROR("Could not bring arms to zero.");
         ros::requestShutdown();
@@ -460,7 +492,7 @@ bool doStaticUproot(urGovernor::FetchWeed& fetchWeedSrv)
                     angle1Deg, angle2Deg, angle3Deg);
 
         // First, come up to 0. This ensures we don't hit anything on the way
-        if (!actuateArmAngles(0, 0, 0))
+        if (!actuateArmAngles(0, 0, 0, true))
         {
             ROS_ERROR("Could not bring arms to zero.");
             ros::requestShutdown();
@@ -478,7 +510,7 @@ bool doStaticUproot(urGovernor::FetchWeed& fetchWeedSrv)
             stopEndEffector();
 
             // Back up to 0
-            if (!actuateArmAngles(0, 0, 0))
+            if (!actuateArmAngles(0, 0, 0, true))
             {
                 ROS_ERROR("Could not bring arms to zero.");
                 ros::requestShutdown();

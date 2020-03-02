@@ -19,7 +19,7 @@ std::string serialServiceReadName;
 bool serialWrite(urGovernor::SerialWrite::Request &req, urGovernor::SerialWrite::Response &res)
 {
     std::vector<char> v(req.command.begin(), req.command.end());
-    SerialUtils::CmdMsg msg = {0};
+    SerialUtils::CmdMsg msg;
     // Unpack response from read
     SerialUtils::unpack(v, msg);
 
@@ -31,15 +31,10 @@ bool serialWrite(urGovernor::SerialWrite::Request &req, urGovernor::SerialWrite:
 // Serial Read service (called by controller to sychronize end of motor movement)
 bool serialRead(urGovernor::SerialRead::Request &req, urGovernor::SerialRead::Response &res)
 {
-    SerialUtils::CmdMsg msg = {0};
+    SerialUtils::CmdMsg msg;
+    msg.cmd_success = true;
     std::vector<char> buff;
 
-    msg.is_relative = 0;
-    msg.m1_angle = 0;
-    msg.m2_angle = 0;
-    msg.m3_angle = 0;
-    msg.motors_done = true; // valid response
-    
     SerialUtils::pack(buff, msg);
     res.command = std::string(buff.begin(), buff.end());
 

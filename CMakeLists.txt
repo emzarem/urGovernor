@@ -132,19 +132,6 @@ target_link_libraries(serialOutput
   ${catkin_LIBRARIES}
 )
 
-## For testing serial
-add_executable(testTeensy
-    src/testnodes/testTeensy_node.cpp
-)
-
-add_dependencies(testTeensy
-  ${catkin_EXPORTED_TARGETS}
-)
-
-target_link_libraries(testTeensy
-  ${catkin_LIBRARIES}
-)
-
 ## For kinematics manual testing
 
 ## Declare cpp executables

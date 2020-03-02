@@ -40,16 +40,15 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
 {
     urGovernor::SerialWrite serialWrite;
     urGovernor::SerialRead serialRead;   
-    SerialUtils::CmdMsg msg = {0};
+    SerialUtils::CmdMsg msg = {
+        .cmd_type = SerialUtils::CMDTYPE_MTRS,
+        .is_relative = 0,
+        .mtr_angles = {(float)angle1Deg, (float)angle2Deg, (float)angle3Deg}
+    };
     std::vector<char> buff;
-
-    msg.is_relative = 0;
-    msg.m1_angle = angle1Deg;
-    msg.m2_angle = angle2Deg;
-    msg.m3_angle = angle3Deg;
-    msg.motors_done = 0;
-    
     SerialUtils::pack(buff, msg);
+
+    ROS_INFO("Setting angles: %d %d %d", msg.mtr_angles[0], msg.mtr_angles[1],msg.mtr_angles[2]);
 
     serialWrite.request.command = std::string(buff.begin(), buff.end());
 
@@ -66,12 +65,14 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
             {
                 std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
                 
-                msg.motors_done = 0;
+                msg.cmd_success = 0;
                 // Unpack response from read
                 SerialUtils::unpack(v, msg);
 
+                ROS_INFO("Heres the return msg: %s" , std::string(msg));
+
                 // This should indicate that we are done
-                if (msg.motors_done)
+                if (msg.cmd_type == SerialUtils::CMDTYPE_RESP && msg.cmd_success)
                 {
                     ROS_INFO("Motor callback received.");
                     return 1;
