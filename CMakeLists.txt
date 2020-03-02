@@ -33,6 +33,7 @@ add_service_files(
   SerialWrite.srv
   SerialRead.srv
   KinematicsTest.srv
+  MotorConfigTest.srv
 )
 
 generate_messages(

@@ -10,6 +10,7 @@
 #include <urGovernor/SerialWrite.h>
 #include <urGovernor/SerialRead.h>
 #include <urGovernor/KinematicsTest.h>
+#include <urGovernor/MotorConfigTest.h>
 
 // Parameters to read from configs
 std::string serialServiceWriteName;
@@ -161,11 +162,14 @@ bool adjustSpeed(urGovernor::MotorConfigTest::Request &req, urGovernor::MotorCon
     urGovernor::SerialRead serialRead;   
     SerialUtils::CmdMsg msg = {
         .cmd_type = SerialUtils::CMDTYPE_CONFIG,
-        .mtr_speed_deg_s = req.speed,
-        .mtr_accel_deg_s_s = req.accel
     };
+    msg.mtr_speed_deg_s = req.speed;
+    msg.mtr_accel_deg_s_s = req.accel;
+
     std::vector<char> buff;
     SerialUtils::pack(buff, msg);
+
+    SerialUtils::CmdMsg ret_msg;
 
     ROS_INFO("Setting config: %d %d", msg.mtr_speed_deg_s, msg.mtr_accel_deg_s_s);
 
@@ -176,32 +180,28 @@ bool adjustSpeed(urGovernor::MotorConfigTest::Request &req, urGovernor::MotorCon
     if (serialWriteClient.call(serialWrite))
     {
         ros::Rate loopRate( 1.0 / (serialTimeoutMs / 1000.0));
-        while (ros::ok())
+        ros::WallTime start_time = ros::WallTime::now();
+        double timeout = 2;
+
+        while (ros::ok() && (ros::WallTime::now()- start_time).toSec() < timeout )
         {
-            // Wait for arm done
-            // This is done by calling the serial READ client
-            // This should block until we get a CmdMsg FROM the serial line
+            
             if (serialReadClient.call(serialRead))
             {
                 std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
                 
-                msg.cmd_success = 0;
+                ret_msg.cmd_success = 0;
                 // Unpack response from read
-                SerialUtils::unpack(v, msg);
+                SerialUtils::unpack(v, ret_msg);
 
-                ROS_INFO("Heres the return msg: %s" , std::string(msg));
+                ROS_INFO("Heres the return msg: %s" , std::string(ret_msg));
 
                 // This should indicate that we are done
-                if (msg.cmd_type == SerialUtils::CMDTYPE_RESP && msg.cmd_success)
+                if (ret_msg == msg && ret_msg.cmd_success)
                 {
                     ROS_INFO("Motor callback received.");
                     res.success = true;
-                    return;
-                }
-                else 
-                {
-                    ROS_ERROR("Motors did not return with (motors_done == true)");
-                    return;
+                    return true;
                 }
             }
             else
@@ -210,15 +210,14 @@ bool adjustSpeed(urGovernor::MotorConfigTest::Request &req, urGovernor::MotorCon
             }
             loopRate.sleep();
         }
+        ROS_ERROR("Timed out on response from teensy");
     }
     else
     {
         ROS_ERROR("Serial write to set motors was NOT successful.");
     }
     
-    return;
-}
-    
+    return false;
 }
 
 int main(int argc, char** argv)
