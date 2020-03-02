@@ -142,7 +142,7 @@ bool waitSuccess()
         // This is done by calling the serial READ client
         // This should block until we get a CmdMsg FROM the serial line
         if (checkSuccess()) {
-            ROS_INFO("Teensy callback received.");
+            ROS_DEBUG("Teensy callback received.");
             return true;
         }
 
@@ -157,7 +157,7 @@ bool waitSuccess()
             // This should indicate that we are done
             if (msg.cmd_type == SerialUtils::CMDTYPE_RESP && msg.cmd_success)
             {
-                ROS_INFO("Teensy callback received.");
+                ROS_DEBUG("Teensy callback received.");
                 return true;
             }
             else 
@@ -242,9 +242,9 @@ bool stopEndEffector()
 {
     if (!endEffectorRunning)
         return true;
-        
+    
     ROS_INFO("STOP end effector.");
-    endEffectorRunning = true;
+    endEffectorRunning = false;
     SerialUtils::CmdMsg msg = { .cmd_type = SerialUtils::CMDTYPE_ENDEFF_OFF };
     sendCmd(msg);
     if (!waitSuccess()) {
@@ -348,11 +348,10 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
                         keepGoing = false;
                         retValue = false;    
                     }
-
-                    // If any of the angles have changed, make call to update the arm angles
-                    if (abs(angle1Deg - oldAngle1) > minUpdateAngle ||
-                        abs(angle2Deg - oldAngle2) > minUpdateAngle ||
-                        abs(angle3Deg - oldAngle3) > minUpdateAngle)
+                    // ELSE if any of the angles have changed, make call to update the arm angles
+                    else if(abs(angle1Deg - oldAngle1) > minUpdateAngle ||
+                            abs(angle2Deg - oldAngle2) > minUpdateAngle ||
+                            abs(angle3Deg - oldAngle3) > minUpdateAngle)
                     {
                         oldAngle1 = angle1Deg;
                         oldAngle2 = angle2Deg;
