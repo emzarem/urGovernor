@@ -156,6 +156,70 @@ bool moveArm(urGovernor::KinematicsTest::Request &req, urGovernor::KinematicsTes
     return true;
 }
 
+bool adjustSpeed(urGovernor::MotorConfigTest::Request &req, urGovernor::MotorConfigTest::Response &res) {
+    urGovernor::SerialWrite serialWrite;
+    urGovernor::SerialRead serialRead;   
+    SerialUtils::CmdMsg msg = {
+        .cmd_type = SerialUtils::CMDTYPE_CONFIG,
+        .mtr_speed_deg_s = req.speed,
+        .mtr_accel_deg_s_s = req.accel
+    };
+    std::vector<char> buff;
+    SerialUtils::pack(buff, msg);
+
+    ROS_INFO("Setting config: %d %d", msg.mtr_speed_deg_s, msg.mtr_accel_deg_s_s);
+
+    serialWrite.request.command = std::string(buff.begin(), buff.end());
+
+    res.success = false;
+    // Send angles to HAL (via calling the serial WRITE client)
+    if (serialWriteClient.call(serialWrite))
+    {
+        ros::Rate loopRate( 1.0 / (serialTimeoutMs / 1000.0));
+        while (ros::ok())
+        {
+            // Wait for arm done
+            // This is done by calling the serial READ client
+            // This should block until we get a CmdMsg FROM the serial line
+            if (serialReadClient.call(serialRead))
+            {
+                std::vector<char> v(serialRead.response.command.begin(), serialRead.response.command.end());
+                
+                msg.cmd_success = 0;
+                // Unpack response from read
+                SerialUtils::unpack(v, msg);
+
+                ROS_INFO("Heres the return msg: %s" , std::string(msg));
+
+                // This should indicate that we are done
+                if (msg.cmd_type == SerialUtils::CMDTYPE_RESP && msg.cmd_success)
+                {
+                    ROS_INFO("Motor callback received.");
+                    res.success = true;
+                    return;
+                }
+                else 
+                {
+                    ROS_ERROR("Motors did not return with (motors_done == true)");
+                    return;
+                }
+            }
+            else
+            {
+                ROS_DEBUG("Timed out waiting for response from Teensy ... retrying ...");
+            }
+            loopRate.sleep();
+        }
+    }
+    else
+    {
+        ROS_ERROR("Serial write to set motors was NOT successful.");
+    }
+    
+    return;
+}
+    
+}
 
 int main(int argc, char** argv)
 {
@@ -182,6 +246,7 @@ int main(int argc, char** argv)
     deltarobot_setup();
 
     ros::ServiceServer moveService = nodeHandle.advertiseService("move_to_coords", moveArm);
+    ros::ServiceServer configService = nodeHandle.advertiseService("mtr_config", adjustSpeed);
 
     ros::spin();
 
