@@ -259,7 +259,7 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
 {
     // Continually update these angles
     int oldAngle1 = 0,oldAngle2 = 0,oldAngle3 = 0;
-    // Store the first tracking_id
+    // Store the tracking id that we got
     int tracking_id = fetchWeedSrv.response.tracking_id;
 
     static int lastIDOutOfRange = -1;
@@ -278,6 +278,7 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
     
     SerialUtils::CmdMsg last_msg;
     bool command_sent = false;
+    int idMissedCount = 0;
 
     // Main Loop for constant tracking
     while (ros::ok() && keepGoing)
@@ -292,6 +293,7 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed& fetchWeedSrv)
             // IF response has a different tracking_id
             if(fetchWeedSrv.response.tracking_id != tracking_id)
             {
+                
                 keepGoing = false;
             }
             else
