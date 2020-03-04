@@ -5,6 +5,10 @@ serial_port: /dev/ttyTHS1
 serial_baud_rate: 115200
 serial_timeout_ms: 200
 
+## MOTOR CONFIG
+motor_speed_deg_s: 120
+motor_accel_deg_s_s: 60
+
 ## TIMING PARAMETERS
 # **MAX** Query rate of the controller to make service requests for new weeds [Hz]
 controller_overall_rate: 5.0

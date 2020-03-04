@@ -48,6 +48,8 @@ const int logFetchWeedInterval = 5;
 
 int serialTimeoutMs;
 int commandTimeoutSec;
+int motorSpeedDegS;
+int motorAccelDegSS;
 
 // General parameters for this node
 bool readGeneralParameters(ros::NodeHandle nodeHandle)
@@ -82,6 +84,9 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
 
     if (!nodeHandle.getParam("serial_timeout_ms", serialTimeoutMs)) return false;
     if (!nodeHandle.getParam("command_timeout_sec", commandTimeoutSec)) return false;
+
+    if (!nodeHandle.getParam("motor_speed_deg_s", motorSpeedDegS)) return false;
+    if (!nodeHandle.getParam("motor_accel_deg_s_s", motorAccelDegSS)) return false;
    
     return true;
 }
@@ -170,6 +175,19 @@ bool waitSuccess(SerialUtils::CmdMsg exp_msg)
     return false;
 }
 
+// Configure speed and acceleration in degrees/second -- value of 0 is discarded
+bool configMotors(int speedDegS, int accelDegSS)
+{
+    SerialUtils::CmdMsg msg = { .cmd_type = SerialUtils::CMDTYPE_CONFIG };
+    msg.mtr_speed_deg_s = speedDegS;
+    msg.mtr_accel_deg_s_s = accelDegSS;
+    sendCmd(msg);
+    if(!waitSuccess(msg)) {
+        ROS_ERROR("Unable to configure motors");
+        return false;
+    }
+    return true;
+}
 
 // Single set point, updates only, returns immediately
 bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg, SerialUtils::CmdMsg* p_msg = NULL)
@@ -573,11 +591,17 @@ int main(int argc, char** argv)
     // Default deltarobot setup
     deltarobot_setup();
 
-    // SET arms to initial position
+    // CALIBRATE arms
     if (!actuateArmAngles(restAngle1, restAngle2, restAngle3, true))
     {
         ROS_ERROR("Could not Initialize arm positions.");
         ros::requestShutdown();
+    }
+
+    // CONFIGURE motors
+    if (!configMotors(motorSpeedDegS, motorAccelDegSS))
+    {
+        ROS_ERROR("Unable to configure motors... continuing with default speed & accel");
     }
 
     // Sleep for startup to ensure we get our camera stream
