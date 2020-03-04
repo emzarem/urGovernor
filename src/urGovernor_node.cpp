@@ -347,6 +347,8 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
                         targetX, targetY, targetZ, 
                         angle1Deg, angle2Deg, angle3Deg);
 
+                    startEndEffector();
+
                     // Update the arm angles
                     if (!sendArmAngles(angle1Deg, angle2Deg, angle3Deg, &last_msg))
                     {
@@ -376,7 +378,6 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
         else if (!weedReached && command_sent && checkSuccess(last_msg))
         {
             weedReached = true;
-            startEndEffector();
             startUproot = ros::WallTime::now();
         }
         // ELSE
@@ -387,7 +388,6 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
             if (timeDelta >= actuationTimeOverride)
             {
                 weedReached = true;
-                startEndEffector();
                 startUproot = ros::WallTime::now();
             }
         }

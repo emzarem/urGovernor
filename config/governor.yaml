@@ -40,4 +40,4 @@ cartesian_limit_y_min: -40
 angle_limit: 90
 
 # Change this depending on how far in / to the soil we awant to go
-soil_offset: 5 # offset of soil (cm)
+soil_offset: 8 # offset of soil (cm)
