@@ -25,14 +25,14 @@ int restAngle1, restAngle2, restAngle3;
 float cartesianLimitXMax, cartesianLimitXMin, cartesianLimitYMax, cartesianLimitYMin;
 float angleLimit;
 
-bool doConstantTracking;
 float initSleepTime;
 float actuationTimeOverride;
 int minUpdateAngle;
 
 const int relativeAngleFlag = false;
 
-int soilOffset = 0;
+float toolOffset;
+float soilOffset;
 
 // Time to actuate end-effector
 double endEffectorTime = 0;
@@ -58,7 +58,6 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("mark_uprooted_service", markUprootedServiceName)) return false;
     
     if (!nodeHandle.getParam("controller_overall_rate", overallRate)) return false;
-    if (!nodeHandle.getParam("do_constant_tracking", doConstantTracking)) return false;
     if (!nodeHandle.getParam("init_sleep_time", initSleepTime)) return false;
     if (!nodeHandle.getParam("max_actuation_time_override", actuationTimeOverride)) return false;
     if (!nodeHandle.getParam("min_update_angle", minUpdateAngle)) return false;
@@ -76,7 +75,8 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("angle_limit", angleLimit)) return false;
 
     if (!nodeHandle.getParam("end_effector_time_s", endEffectorTime)) return false;
-
+    
+    if (!nodeHandle.getParam("tool_offset", toolOffset)) return false;
     if (!nodeHandle.getParam("soil_offset", soilOffset)) return false;
 
     if (!nodeHandle.getParam("serial_output_service", serialServiceWriteName)) return false;
@@ -270,12 +270,14 @@ bool stopEndEffector()
 /* This function performs the function of 'uprooting' a weed
  *      This function polls the tracker to update the location of the weed
  */
-bool doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
+void doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
 {
     // Continually update these angles
     int oldAngle1 = 0,oldAngle2 = 0,oldAngle3 = 0;
-    // Now we only want to query for this specific ID
-    fetchWeedSrv.request.request_id = fetchWeedSrv.response.tracking_id;
+    // Save the current tracking ID
+    int currentTrackingID = fetchWeedSrv.response.tracking_id;
+    // Now we only want to query for this one
+    fetchWeedSrv.request.request_id = currentTrackingID;
 
     static int lastIDOutOfRange = -1;
 
@@ -388,7 +390,6 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
             timeDelta = (ros::WallTime::now() - startUproot).toSec();
             if (timeDelta >= endEffectorTime)
             {
-                stopEndEffector();
                 keepGoing = false;
             }
         }
@@ -414,22 +415,26 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
         loopRate.sleep();
     }
 
-    // Stop endEffector
-    stopEndEffector();
-
-    // Back up to 0
-    // if (!actuateArmAngles(0, 0, 0, true))
-    // {
-    //     ROS_ERROR("Could not bring arms to zero.");
-    //     ros::requestShutdown();
-    //     retValue = false;
-    // }
-
-    timeDelta = (ros::WallTime::now() - startActuation).toSec();
-    // Override if we've hit our actuation time override
-    if (timeDelta >= actuationTimeOverride)
+    // IF not weedReached
+    if (!weedReached)
     {
-        weedReached = true;
+        // Check if we should mark it as uprooted anyways
+        timeDelta = (ros::WallTime::now() - startActuation).toSec();
+        // Override if we've hit our actuation time override
+        if (timeDelta >= actuationTimeOverride)
+        {
+            weedReached = true;
+        }
+    }
+
+    urGovernor::MarkUprooted markUprootedSrv;
+    // weedReached indicates the success of this call
+    markUprootedSrv.request.success = weedReached;
+    // Mark this weed as uprooted (or back to ready if not successful)
+    markUprootedSrv.request.tracking_id = currentTrackingID;
+    if (!markUprootedClient.call(markUprootedSrv))
+    {
+        ROS_ERROR("Governor -- Error calling markUprooted Srv (call to tracker_node).");
     }
 
     // Back to resting position
@@ -439,119 +444,10 @@ bool doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
         ros::requestShutdown();
     }
 
-    return weedReached;
-}
+    // Stop endEffector
+    stopEndEffector();
 
-/* This function performs the function of 'uprooting' a weed
- *      This function does not update the weed location during actuation
- */
-bool doStaticUproot(urGovernor::FetchWeed fetchWeedSrv)
-{
-    //// Process the current coordinates
-    float targetX = fetchWeedSrv.response.weed.x_cm;
-    float targetY = fetchWeedSrv.response.weed.y_cm;
-    float targetZ = fetchWeedSrv.response.weed.z_cm;
-    float targetSize = fetchWeedSrv.response.weed.size_cm;
-
-    // Time this whole operation
-    ros::WallTime start_, end_;
-    start_ = ros::WallTime::now();
-
-    // IF cartesian coordinate are out of range
-    if (targetX > cartesianLimitXMax ||
-        targetX < cartesianLimitXMin ||
-        targetY > cartesianLimitYMax ||
-        targetY < cartesianLimitYMin )
-    {
-        ROS_INFO("COORDS OUT OF RANGE of delta arm [(x,y,size)=(%.1f,%.1f,%.1f)]",targetX,targetY,targetSize);
-        return false;
-    }
-
-    /* Create coordinates in the Delta Arm Reference
-    *   This conversion requires a 'rotation matrix' 
-    *   to be applied to comply with Delta library coordinates.
-    *   x' = x*cos(theta) - y*sin(theta)
-    *   y' = x*sin(theta) + y*cos(theta)
-    * Based on our setup, theta = +60 degrees AND X and Y coordinates are switched
-    */
-    float x_coord = (float)(targetY*(0.5) - (targetX)*(0.866));
-    float y_coord = (float)(targetY*(0.866) + (targetX)*(0.5));
-    float z_coord = (float)targetZ + soilOffset;    // z = 0 IS AT THE GROUND (z = is always positive)
-
-    /* Calculate angles for Delta arm */
-    robot_position(x_coord, y_coord, z_coord); 
-
-    int angle1Deg,angle2Deg,angle3Deg;
-
-    // Get the resulting angles from kinematics
-    if (getArmAngles(&angle1Deg, &angle2Deg, &angle3Deg))
-    {
-        // IF calculated angles are out of range
-        if (angle1Deg > angleLimit ||
-            angle2Deg > angleLimit ||
-            angle3Deg > angleLimit)
-        {
-            ROS_ERROR("ANGLES OUT OF RANGE of delta arm [(a1,a2,a3)=(%i,%i,%i)]",angle1Deg,angle2Deg,angle3Deg);
-            return false;
-        }
-
-        ROS_INFO("STATIC weed @ (%.1f,%.1f,%.1f) [cm] -> (%i,%i,%i) [degrees]",
-                    targetX, targetY, targetZ, 
-                    angle1Deg, angle2Deg, angle3Deg);
-
-        // First, come up to 0. This ensures we don't hit anything on the way
-        if (!actuateArmAngles(0, 0, 0, true))
-        {
-            ROS_ERROR("Could not bring arms to zero.");
-            ros::requestShutdown();
-            return false;
-        }
-
-        // GO to our target
-        if (actuateArmAngles(angle1Deg, angle2Deg, angle3Deg))
-        {
-            startEndEffector();
-            
-            // Wait for end-effectors
-            ros::Duration(endEffectorTime).sleep();
-            
-            stopEndEffector();
-
-            // Back up to 0
-            if (!actuateArmAngles(0, 0, 0, true))
-            {
-                ROS_ERROR("Could not bring arms to zero.");
-                ros::requestShutdown();
-                return false;
-            }
-
-            // Back to resting position
-            if (!actuateArmAngles(restAngle1, restAngle2, restAngle3))
-            {
-                ROS_ERROR("Could not Reset arm positions.");
-                ros::requestShutdown();
-                return false;
-            }
-
-            // That's it -- the weed is 'uprooted'
-            end_ = ros::WallTime::now();
-            double execution_time = (end_ - start_).toNSec() * 1e-6;
-            ROS_DEBUG_STREAM("Actuation time for weed (ms): " << execution_time);
-
-            return true;
-        }
-        else
-        {
-            ROS_ERROR("Could not actuate motors to specified arm angles");
-            ros::requestShutdown();
-        }
-    }
-    else
-    {
-        ROS_ERROR("Could not get arm angles.");
-    }
-
-    return false;
+    return;    
 }
 
 int main(int argc, char** argv)
@@ -582,12 +478,10 @@ int main(int argc, char** argv)
     // Subscribe to second service from tracker
     markUprootedClient = nh.serviceClient<urGovernor::MarkUprooted>(markUprootedServiceName);
     ros::service::waitForService(markUprootedServiceName);
-    urGovernor::MarkUprooted markUprootedSrv;
-
 
     /* Initializing Kinematics */
     // Set tool offset (tool id == 0, x, y, z )
-    robot_tool_offset(0, 0, 0, 0);
+    robot_tool_offset(0, 0, 0, -(toolOffset));
     // Default deltarobot setup
     deltarobot_setup();
 
@@ -620,23 +514,7 @@ int main(int argc, char** argv)
         // IF we do get a new weed
         if (fetchWeedClient.call(fetchWeedSrv))
         {
-            if (doConstantTracking)
-            {
-                // This call will do a continual update uproot
-                markUprootedSrv.request.success = doConstantTrackingUproot(fetchWeedSrv);
-            }
-            else
-            {
-                // This call will do a static uproot
-                markUprootedSrv.request.success = doStaticUproot(fetchWeedSrv);
-            }
-
-            // Mark this weed as uprooted (or back to ready if not successful)
-            markUprootedSrv.request.tracking_id = fetchWeedSrv.response.tracking_id;
-            if (!markUprootedClient.call(markUprootedSrv))
-            {
-                ROS_ERROR("Governor -- Error calling markUprooted Srv (call to tracker_node).");
-            }
+            doConstantTrackingUproot(fetchWeedSrv);
         }
         else
         {

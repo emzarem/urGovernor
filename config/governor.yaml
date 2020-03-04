@@ -13,8 +13,6 @@ motor_accel_deg_s_s: 60
 # **MAX** Query rate of the controller to make service requests for new weeds [Hz]
 controller_overall_rate: 5.0
 # If this is true, do continuous update of position
-# Otherwise, just do static
-do_constant_tracking: true
 # Maximum time for arm actuation
 max_actuation_time_override: 1.0
 # Time for end-effector to perform its duties (in seconds)
@@ -43,5 +41,5 @@ cartesian_limit_y_min: -40
 # Even if cartesian limits pass, check angle limits
 angle_limit: 90
 
-# Change this depending on how far in / to the soil we awant to go
-soil_offset: 8 # offset of soil (cm)
+soil_offset: 1.0 # offset of soil (cm)
+tool_offset: 9.0 # offset of tool (cm)

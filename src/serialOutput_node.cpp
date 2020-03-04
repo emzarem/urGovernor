@@ -116,6 +116,7 @@ int main(int argc, char** argv)
     }
 
     if(ser.isOpen()){
+        ser.flush();
         ROS_INFO("Serial Port initialized");
     }else{
         return -1;
