@@ -36,7 +36,7 @@ float soilOffset;
 
 // Time to actuate end-effector
 double endEffectorTime = 0;
-bool endEffectorRunning = false;
+bool endEffectorRunning = true;
 
 // Connections to Serial interface services
 ros::ServiceClient serialWriteClient;
@@ -484,6 +484,8 @@ int main(int argc, char** argv)
     robot_tool_offset(0, 0, 0, -(toolOffset));
     // Default deltarobot setup
     deltarobot_setup();
+
+    stopEndEffector();
 
     // CALIBRATE arms
     if (!actuateArmAngles(restAngle1, restAngle2, restAngle3, true))
