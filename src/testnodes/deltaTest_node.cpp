@@ -27,9 +27,9 @@ Object tests[] = {
 
 static void object_to_weed(Object& obj, urVision::weedData& weed)
 {
-    weed.x_cm = obj.x;
-    weed.y_cm = obj.y;
-    weed.z_cm = obj.z;
+    weed.point.x = obj.x;
+    weed.point.y = obj.y;
+    weed.point.z = obj.z;
     weed.size_cm = obj.size;
 }
 

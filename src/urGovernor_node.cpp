@@ -307,9 +307,9 @@ void doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
         else
         {
             //// Process the current coordinates
-            float targetX = fetchWeedSrv.response.weed.x_cm;
-            float targetY = fetchWeedSrv.response.weed.y_cm;
-            float targetZ = fetchWeedSrv.response.weed.z_cm;
+            float targetX = fetchWeedSrv.response.weed.point.x;
+            float targetY = fetchWeedSrv.response.weed.point.y;
+            float targetZ = fetchWeedSrv.response.weed.point.z;
             float targetSize = fetchWeedSrv.response.weed.size_cm;
 
             // IF cartesian coordinate are out of range
