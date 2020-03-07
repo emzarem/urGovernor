@@ -3,9 +3,8 @@
 #include "urVision/ObjectTracker.h"
 
 // Srv and msg types
-#include <urGovernor/FetchWeed.h>
-#include <urVision/weedDataArray.h>
-
+#include <urGovernor/KinematicsTest.h>
+#include <urGovernor/MotorConfigTest.h>
 #include <vector>
 
 // Parameters to read from configs
@@ -13,48 +12,27 @@ std::string fetchWeedServiceName;
 
 static int testIndex = 0;
 
+int motorSpeedDegS;
+int motorAccelDegSS;
+
 // (x,y,size) in cm. Size should be set to 0,not used
 Object tests[] = {
-    {0,0,0,0},
-    {19,19,0,0},
-    {-19,-19,0,0},
-    {19,0,0,0},
-    {0,-19,0,0},
-    {10,10,0,0},
-    {-5,10,0,0},
-    {-10,5,0,0},
+    {0,0,55,0},
+    {19,15,2,0},
+    {-19,15,2,0},
+    {-19,-25,2,0},
+    {19,-25,2,0},
+    {0,0,2,0},
+    {0,0,55,0},
 };
-
-static void object_to_weed(Object& obj, urVision::weedData& weed)
-{
-    weed.point.x = obj.x;
-    weed.point.y = obj.y;
-    weed.point.z = obj.z;
-    weed.size_cm = obj.size;
-}
-
-/* This is a test implementation of the fetch weed service */
-// Fetch weed service (called by governor)
-bool fetch_weed(urGovernor::FetchWeed::Request &req, urGovernor::FetchWeed::Response &res)
-{
-    /* Increment test index */
-    if (testIndex >= sizeof(tests)/sizeof(Object))
-    {
-        ROS_INFO("fetch_weed_service: No current weeds available");
-        return false;
-    }
-    else
-    {
-        object_to_weed(tests[testIndex], res.weed);
-        testIndex++;
-        return true;
-    }
-}
 
 // General parameters for this node
 bool readGeneralParameters(ros::NodeHandle nodeHandle)
 {
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
+
+    if (!nodeHandle.getParam("motor_speed_deg_s", motorSpeedDegS)) return false;
+    if (!nodeHandle.getParam("motor_accel_deg_s_s", motorAccelDegSS)) return false;
 
     return true;
 }
@@ -70,8 +48,50 @@ int main(int argc, char** argv)
         ros::requestShutdown();
     }
 
-    // Service to provide to governor
-    ros::ServiceServer service = nodeHandle.advertiseService(fetchWeedServiceName, fetch_weed);
+    ros::ServiceClient configClient = nodeHandle.serviceClient<urGovernor::MotorConfigTest>("/kinematicsTest/mtr_config");
+    ros::service::waitForService("/kinematicsTest/mtr_config");
+    urGovernor::MotorConfigTest configSrv;
 
-    ros::spin();
+    configSrv.request.speed = motorSpeedDegS;
+    configSrv.request.accel = motorAccelDegSS;
+
+    if (!configClient.call(configSrv))
+    {
+        ROS_ERROR("Could not configure motors for deltaTest.");
+        ros::requestShutdown();
+    }
+
+    ros::ServiceClient motorClient = nodeHandle.serviceClient<urGovernor::KinematicsTest>("/kinematicsTest/move_to_coords");
+    ros::service::waitForService("/kinematicsTest/move_to_coords");
+    urGovernor::KinematicsTest motorSrv;
+
+    ros::Rate loopRate(0.5);
+    while (ros::ok())
+    {
+        /* Increment test index */
+        if (testIndex >= sizeof(tests)/sizeof(Object))
+        {
+            break;
+        }
+        else
+        {
+            motorSrv.request.x_coord = tests[testIndex].x;
+            motorSrv.request.y_coord = tests[testIndex].y;
+            motorSrv.request.z_coord = tests[testIndex].z;
+
+            if (!motorClient.call(motorSrv))
+            {
+                ROS_ERROR("Could not run motors for deltaTest.");
+                ros::requestShutdown();
+            }
+        }
+
+        testIndex++;
+
+        loopRate.sleep();
+    }
+
+    ROS_INFO("Delta Test DONE!.");
+
+    return 0;
 }

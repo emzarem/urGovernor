@@ -1,22 +1,10 @@
 <launch>
-	<!-- Launch serialOutput node -->
-	<node pkg="urGovernor" type="serialStub" name="serialStub" output="screen">
-		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
-	</node>
+	<!-- Launch kinematics test -->
+	<include file="$(find urGovernor)/launch/kinematicsTest.launch"></include>
 
 	<!-- Launch deltaTest node -->
 	<node pkg="urGovernor" type="deltaTest" name="deltaTest" output="screen">
 		<rosparam command="load" file="$(find urVision)/config/common.yaml" />
 		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
 	</node>
-
-	<!-- Launch urGovernor node -->
-	<!-- Just give the governor a bit of time to start up -->
-	<arg name="node_start_delay" default="2.0" />  
-	<node pkg="urGovernor" type="urGovernor" name="urGovernor" output="screen" 
-			launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' " >
-		<rosparam command="load" file="$(find urVision)/config/common.yaml" />
-		<rosparam command="load" file="$(find urGovernor)/config/governor.yaml" />
-	</node>
-
 </launch>

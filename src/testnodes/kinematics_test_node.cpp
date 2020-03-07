@@ -17,6 +17,8 @@ std::string serialServiceWriteName;
 std::string serialServiceReadName;
 double endEffectorTime = 0;
 int serialTimeoutMs;
+float toolOffset = 0;
+float soilOffset = 0;
 
 // Connections to Serial interface services
 ros::ServiceClient serialWriteClient;
@@ -31,6 +33,9 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("end_effector_time_s", endEffectorTime)) return false;
     if (!nodeHandle.getParam("serial_timeout_ms", serialTimeoutMs)) return false;
   
+    if (!nodeHandle.getParam("tool_offset", toolOffset)) return false;
+    if (!nodeHandle.getParam("soil_offset", soilOffset)) return false;
+
     return true;
 }
 
@@ -44,14 +49,14 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     SerialUtils::CmdMsg msg = {
         .cmd_type = SerialUtils::CMDTYPE_MTRS,
         .is_relative = 0,
-        .mtr_angles = {(float)angle1Deg, (float)angle2Deg, (float)angle3Deg}
+        .mtr_angles = {angle1Deg, angle2Deg, angle3Deg}
     };
     std::vector<char> buff;
     SerialUtils::pack(buff, msg);
 
     SerialUtils::CmdMsg ret_msg;
 
-    ROS_INFO("Setting angles: %d %d %d", msg.mtr_angles[0], msg.mtr_angles[1],msg.mtr_angles[2]);
+    ROS_INFO("Setting angles: %i %i %i", msg.mtr_angles[0], msg.mtr_angles[1],msg.mtr_angles[2]);
 
     serialWrite.request.command = std::string(buff.begin(), buff.end());
 
@@ -112,7 +117,7 @@ bool moveArm(urGovernor::KinematicsTest::Request &req, urGovernor::KinematicsTes
     */
     float x_coord = (float)(req.y_coord*(0.5) - (req.x_coord)*(0.866));
     float y_coord = (float)(req.y_coord*(0.866) + (req.x_coord)*(0.5));
-    float z_coord = (float)req.z_coord;    // z = 0 IS AT THE GROUND (z = is always positive)
+    float z_coord = (float)req.z_coord + soilOffset;    // z = 0 IS AT THE GROUND (z = is always positive)
     
     /* Calculate angles for Delta arm */
     robot_position(x_coord, y_coord, z_coord); 
@@ -240,7 +245,7 @@ int main(int argc, char** argv)
 
     /* Initializing Kinematics */
     // Set tool offset (tool id == 0, x, y, z )
-    robot_tool_offset(0, 0, 0, 0);
+    robot_tool_offset(0, 0, 0, -(toolOffset));
     // Default deltarobot setup
     deltarobot_setup();
 
