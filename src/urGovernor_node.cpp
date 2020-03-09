@@ -205,7 +205,7 @@ bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg, SerialUtils::Cmd
     SerialUtils::CmdMsg msg = {
         .cmd_type = SerialUtils::CMDTYPE_MTRS,
         .is_relative = relativeAngleFlag,
-        .mtr_angles = {angle1Deg, angle2Deg, angle3Deg},
+        .mtr_angles = {(uint32_t)angle1Deg, (uint32_t)angle2Deg, (uint32_t)angle3Deg},
     };
     // Send angles to HAL (via calling the serial WRITE client)
     if (sendCmd(msg))

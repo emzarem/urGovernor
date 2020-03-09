@@ -11,7 +11,7 @@ motor_accel_deg_s_s: 60
 
 ## TIMING PARAMETERS
 # **MAX** Query rate of the controller to make service requests for new weeds [Hz]
-controller_overall_rate: 3.0
+controller_overall_rate: 5.0
 # If this is true, do continuous update of position
 # Maximum time for arm actuation
 max_actuation_time_override: 1.0
@@ -19,7 +19,7 @@ max_actuation_time_override: 1.0
 end_effector_time_s: 0.75
 # Minimum difference in angles to update Teensy with
 min_update_angle: 1
-max_update_angle: 8
+max_update_angle: 30
 
 # Timeout on commands
 command_timeout_sec: 10
