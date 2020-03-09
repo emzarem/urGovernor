@@ -193,6 +193,13 @@ bool configMotors(int speedDegS, int accelDegSS)
 // Single set point, updates only, returns immediately
 bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg, SerialUtils::CmdMsg* p_msg = NULL)
 {
+    if (angle1Deg == 10)
+        angle1Deg = 11;
+    if (angle2Deg == 10)
+        angle2Deg = 11;
+    if (angle3Deg == 10)
+        angle3Deg = 11;
+
     urGovernor::SerialWrite serialWrite;
     // Pack message
     SerialUtils::CmdMsg msg = {
