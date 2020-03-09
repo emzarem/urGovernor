@@ -19,6 +19,7 @@ max_actuation_time_override: 1.0
 end_effector_time_s: 0.75
 # Minimum difference in angles to update Teensy with
 min_update_angle: 1
+max_update_angle: 8
 
 # Timeout on commands
 command_timeout_sec: 10

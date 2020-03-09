@@ -107,7 +107,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
 }
 
 
-bool moveArm(urGovernor::KinematicsTest::Request &req, urGovernor::KinematicsTest::Response &res) {
+bool moveToCoords(urGovernor::KinematicsTest::Request &req, urGovernor::KinematicsTest::Response &res) {
     /* Create coordinates in the Delta Arm Reference
     *   This conversion requires a 'rotation matrix' 
     *   to be applied to comply with Delta library coordinates.
@@ -157,6 +157,33 @@ bool moveArm(urGovernor::KinematicsTest::Request &req, urGovernor::KinematicsTes
     else
     {
         ROS_ERROR("Could not get arm angles.");
+    }
+
+    return true;
+}
+
+bool moveToAngles(urGovernor::KinematicsTest::Request &req, urGovernor::KinematicsTest::Response &res) {
+    res.success = false; // default no success
+
+    int angle1Deg = (int)req.x_coord;
+    int angle2Deg = (int)req.y_coord;
+    int angle3Deg = (int)req.z_coord;
+
+    ROS_INFO("Delta arm actuating: (%i,%i,%i) [degrees]",
+                (float)req.x_coord, (float)req.y_coord, (float)req.z_coord, 
+                angle1Deg, angle2Deg, angle3Deg);
+    
+    // Block until we've actuated to these angles
+    if (actuateArmAngles(angle1Deg, angle2Deg, angle3Deg))
+    {
+        res.success = true;
+        return true;          
+    }
+    else
+    {
+        ROS_ERROR("Could not actuate motors to specified arm angles");
+        // ros::requestShutdown();
+        return false;
     }
 
     return true;
@@ -249,7 +276,8 @@ int main(int argc, char** argv)
     // Default deltarobot setup
     deltarobot_setup();
 
-    ros::ServiceServer moveService = nodeHandle.advertiseService("move_to_coords", moveArm);
+    ros::ServiceServer moveCoordService = nodeHandle.advertiseService("move_to_coords", moveToCoords);
+    ros::ServiceServer moveAngleService = nodeHandle.advertiseService("move_to_angles", moveToAngles);
     ros::ServiceServer configService = nodeHandle.advertiseService("mtr_config", adjustSpeed);
 
     ros::spin();

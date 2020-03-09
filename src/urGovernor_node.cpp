@@ -28,6 +28,7 @@ float angleLimit;
 float initSleepTime;
 float actuationTimeOverride;
 int minUpdateAngle;
+int maxUpdateAngle;
 
 const int relativeAngleFlag = false;
 
@@ -61,7 +62,7 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("init_sleep_time", initSleepTime)) return false;
     if (!nodeHandle.getParam("max_actuation_time_override", actuationTimeOverride)) return false;
     if (!nodeHandle.getParam("min_update_angle", minUpdateAngle)) return false;
-
+    if (!nodeHandle.getParam("max_update_angle", maxUpdateAngle)) return false;
 
     if (!nodeHandle.getParam("rest_angle_1", restAngle1)) return false;
     if (!nodeHandle.getParam("rest_angle_2", restAngle2)) return false;
@@ -359,26 +360,40 @@ void doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
                         abs(angle2Deg - oldAngle2) > minUpdateAngle ||
                         abs(angle3Deg - oldAngle3) > minUpdateAngle)
                 {
-                    oldAngle1 = angle1Deg;
-                    oldAngle2 = angle2Deg;
-                    oldAngle3 = angle3Deg;
-
-                    ROS_INFO("UPDATE weed @ (%.1f,%.1f,%.1f) [cm] -> (%i,%i,%i) [degrees]",
-                        targetX, targetY, targetZ, 
-                        angle1Deg, angle2Deg, angle3Deg);
-
-                    startEndEffector();
-
-                    // Update the arm angles
-                    if (!sendArmAngles(angle1Deg, angle2Deg, angle3Deg, &last_msg))
+                    // If we've already sent an arm angle and this 
+                    if(command_sent && ( 
+                        abs(angle1Deg - oldAngle1) > maxUpdateAngle ||
+                        abs(angle2Deg - oldAngle2) > maxUpdateAngle ||
+                        abs(angle3Deg - oldAngle3) > maxUpdateAngle 
+                        ))
                     {
-                        // This is a Fatal issue ...
-                        ROS_ERROR("Could not actuate motors to specified arm angles");
-                        ros::requestShutdown();
+                        ROS_ERROR("Angle update is too large... skipping ...",
+                            targetX, targetY, targetZ, 
+                            angle1Deg, angle2Deg, angle3Deg);
+                    }
+                    else
+                    {
+                        oldAngle1 = angle1Deg;
+                        oldAngle2 = angle2Deg;
+                        oldAngle3 = angle3Deg;
 
-                        keepGoing = false;
-                    } else {
-                        command_sent = true;
+                        ROS_INFO("UPDATE weed @ (%.1f,%.1f,%.1f) [cm] -> (%i,%i,%i) [degrees]",
+                            targetX, targetY, targetZ, 
+                            angle1Deg, angle2Deg, angle3Deg);
+
+                        startEndEffector();
+
+                        // Update the arm angles
+                        if (!sendArmAngles(angle1Deg, angle2Deg, angle3Deg, &last_msg))
+                        {
+                            // This is a Fatal issue ...
+                            ROS_ERROR("Could not actuate motors to specified arm angles");
+                            ros::requestShutdown();
+
+                            keepGoing = false;
+                        } else {
+                            command_sent = true;
+                        }
                     }
                 }
             }
