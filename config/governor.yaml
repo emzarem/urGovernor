@@ -36,12 +36,12 @@ rest_angle_3: 0
 
 # Limits of arm operation
 # First, check cartesian coordinate limits
-cartesian_limit_x_max: 30
-cartesian_limit_x_min: -30
+cartesian_limit_x_max: 32
+cartesian_limit_x_min: -32
 cartesian_limit_y_max: 25
 cartesian_limit_y_min: -40
 
-target_y_offset: -8
+target_y_gain: 0.5
 
 # Even if cartesian limits pass, check angle limits
 angle_limit: 90

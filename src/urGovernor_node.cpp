@@ -13,6 +13,7 @@
 #include <urGovernor/SerialWrite.h>
 #include <urGovernor/SerialRead.h>
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/Vector3.h>
 
 // Parameters to read from configs
 std::string fetchWeedServiceName;
@@ -21,6 +22,7 @@ float overallRate;
 
 std::string serialServiceWriteName;
 std::string serialServiceReadName;
+std::string velocityPublisherName;
 
 int restAngle1, restAngle2, restAngle3;
 float cartesianLimitXMax, cartesianLimitXMin, cartesianLimitYMax, cartesianLimitYMin;
@@ -35,7 +37,8 @@ const int relativeAngleFlag = false;
 
 float toolOffset;
 float soilOffset;
-float targetYOffset;
+float targetYGain;
+float curYVel;
 
 // Time to actuate end-effector
 double endEffectorTime = 0;
@@ -61,7 +64,8 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
 {
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
     if (!nodeHandle.getParam("mark_uprooted_service", markUprootedServiceName)) return false;
-    
+    if (!nodeHandle.getParam("velocity_publisher", velocityPublisherName)) return false;
+   
     if (!nodeHandle.getParam("controller_overall_rate", overallRate)) return false;
     if (!nodeHandle.getParam("init_sleep_time", initSleepTime)) return false;
     if (!nodeHandle.getParam("max_actuation_time_override", actuationTimeOverride)) return false;
@@ -84,7 +88,7 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
    
     if (!nodeHandle.getParam("tool_offset", toolOffset)) return false;
     if (!nodeHandle.getParam("soil_offset", soilOffset)) return false;
-    if (!nodeHandle.getParam("target_y_offset", targetYOffset)) return false;
+    if (!nodeHandle.getParam("target_y_gain", targetYGain)) return false;
 
     if (!nodeHandle.getParam("serial_output_service", serialServiceWriteName)) return false;
     if (!nodeHandle.getParam("serial_input_service", serialServiceReadName)) return false;
@@ -330,7 +334,7 @@ void doConstantTrackingUproot(urGovernor::FetchWeed &fetchWeedSrv)
             //// Process the current coordinates
             float targetX = fetchWeedSrv.response.weed.point.x;
             // Add offset here to compensate for motion
-            float targetY = fetchWeedSrv.response.weed.point.y + targetYOffset;
+            float targetY = fetchWeedSrv.response.weed.point.y + targetYGain*curYVel;
             float targetZ = fetchWeedSrv.response.weed.point.z;
             float targetSize = fetchWeedSrv.response.weed.size_cm;
 
@@ -473,10 +477,12 @@ void doConstantTrackingUproot(urGovernor::FetchWeed &fetchWeedSrv)
         ROS_ERROR("Governor -- Error calling markUprooted Srv (call to tracker_node).");
     }
 
-    // Stop endEffector
-    stopEndEffector();
-
     return;    
+}
+
+// velocity callback from tracker
+void updateVelocity(const geometry_msgs::Vector3::ConstPtr& msg){
+    curYVel = msg->y;
 }
 
 int main(int argc, char** argv)
@@ -508,6 +514,15 @@ int main(int argc, char** argv)
     // Subscribe to second service from tracker
     markUprootedClient = nh.serviceClient<urGovernor::MarkUprooted>(markUprootedServiceName);
     ros::service::waitForService(markUprootedServiceName);
+
+    // Subscribe to velocity updates from tracker
+    curYVel = 0;
+    ros::Subscriber velocitySub = nodeHandle.subscribe(
+                velocityPublisherName,
+                1,
+                updateVelocity
+    );
+
 
     /* Initializing Kinematics */
     // Set tool offset (tool id == 0, x, y, z )
@@ -544,6 +559,7 @@ int main(int argc, char** argv)
                 ros::requestShutdown();
             }
         }
+        stopEndEffector();
     };
 
     auto pointDist = [] (geometry_msgs::Point p1, geometry_msgs::Point p2) -> float {
