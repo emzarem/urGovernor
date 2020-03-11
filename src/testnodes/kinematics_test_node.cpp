@@ -49,7 +49,7 @@ bool actuateArmAngles(int angle1Deg, int angle2Deg, int angle3Deg)
     SerialUtils::CmdMsg msg = {
         .cmd_type = SerialUtils::CMDTYPE_MTRS,
         .is_relative = 0,
-        .mtr_angles = {angle1Deg, angle2Deg, angle3Deg}
+        .mtr_angles = {(uint32_t)angle1Deg, (uint32_t)angle2Deg, (uint32_t)angle3Deg}
     };
     std::vector<char> buff;
     SerialUtils::pack(buff, msg);
@@ -131,7 +131,13 @@ bool moveToCoords(urGovernor::KinematicsTest::Request &req, urGovernor::Kinemati
     {
         ROS_INFO("Delta for coords (%.2f,%.2f,%.2f) [cm] -> (%i,%i,%i) [degrees]",
                     (float)req.x_coord, (float)req.y_coord, (float)req.z_coord, 
-                    angle1Deg, angle2Deg, angle3Deg);
+                    (uint32_t)angle1Deg, (uint32_t)angle2Deg, (uint32_t)angle3Deg);
+        
+        if (angle1Deg < 0 || angle2Deg < 0 || angle3Deg < 0)
+        {
+            ROS_ERROR("Got negative angles ...");
+            return false;
+        }
 
         // // Time the blocking call to actuate arm angles
         // ros::WallTime start_, end_;

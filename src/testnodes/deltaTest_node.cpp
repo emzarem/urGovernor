@@ -15,13 +15,13 @@ static int testIndex = 0;
 int motorSpeedDegS;
 int motorAccelDegSS;
 
-// (x,y,size) in cm. Size should be set to 0,not used
+// DO NOT CHANGE THIS!
 Object tests[] = {
     {0,0,55,0},
-    {19,15,2,0},
-    {-19,15,2,0},
-    {-19,-25,2,0},
-    {19,-25,2,0},
+    {17,15,1,0},
+    {-17,15,1,0},
+    {-17,-26,1,0},
+    {17,-26,1,0},
     {0,0,2,0},
     {0,0,55,0},
 };
