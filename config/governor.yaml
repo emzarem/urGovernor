@@ -17,6 +17,8 @@ controller_overall_rate: 5.0
 max_actuation_time_override: 1.0
 # Time for end-effector to perform its duties (in seconds)
 end_effector_time_s: 0.75
+# How close for weeds to be to not come up in between
+stay_down_dist_cm: 25
 # Minimum difference in angles to update Teensy with
 min_update_angle: 1
 max_update_angle: 30

@@ -12,6 +12,7 @@
 #include <urVision/weedDataArray.h>
 #include <urGovernor/SerialWrite.h>
 #include <urGovernor/SerialRead.h>
+#include <geometry_msgs/Point.h>
 
 // Parameters to read from configs
 std::string fetchWeedServiceName;
@@ -38,6 +39,8 @@ float soilOffset;
 // Time to actuate end-effector
 double endEffectorTime = 0;
 bool endEffectorRunning = true;
+bool armDown = false;
+float stayDownDist = 0;
 
 // Connections to Serial interface services
 ros::ServiceClient serialWriteClient;
@@ -76,7 +79,8 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("angle_limit", angleLimit)) return false;
 
     if (!nodeHandle.getParam("end_effector_time_s", endEffectorTime)) return false;
-    
+    if (!nodeHandle.getParam("stay_down_dist_cm", stayDownDist)) return false;
+   
     if (!nodeHandle.getParam("tool_offset", toolOffset)) return false;
     if (!nodeHandle.getParam("soil_offset", soilOffset)) return false;
 
@@ -200,6 +204,13 @@ bool sendArmAngles(int angle1Deg, int angle2Deg, int angle3Deg, SerialUtils::Cmd
     if (angle3Deg == 10)
         angle3Deg = 11;
 
+    if (angle1Deg < restAngle1 &&
+        angle2Deg < restAngle2 &&
+        angle3Deg < restAngle3)
+        armDown = false;
+    else
+        armDown = true;
+
     urGovernor::SerialWrite serialWrite;
     // Pack message
     SerialUtils::CmdMsg msg = {
@@ -278,7 +289,7 @@ bool stopEndEffector()
 /* This function performs the function of 'uprooting' a weed
  *      This function polls the tracker to update the location of the weed
  */
-void doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
+void doConstantTrackingUproot(urGovernor::FetchWeed &fetchWeedSrv)
 {
     // Continually update these angles
     int oldAngle1 = 0,oldAngle2 = 0,oldAngle3 = 0;
@@ -459,13 +470,6 @@ void doConstantTrackingUproot(urGovernor::FetchWeed fetchWeedSrv)
         ROS_ERROR("Governor -- Error calling markUprooted Srv (call to tracker_node).");
     }
 
-    // Back to resting position
-    if (!actuateArmAngles(restAngle1, restAngle2, restAngle3))
-    {
-        ROS_ERROR("Could not Reset arm positions.");
-        ros::requestShutdown();
-    }
-
     // Stop endEffector
     stopEndEffector();
 
@@ -496,6 +500,7 @@ int main(int argc, char** argv)
     fetchWeedClient = nh.serviceClient<urGovernor::FetchWeed>(fetchWeedServiceName);
     ros::service::waitForService(fetchWeedServiceName);
     urGovernor::FetchWeed fetchWeedSrv;
+    urGovernor::FetchWeed fetchWeedSrvLast;
 
     // Subscribe to second service from tracker
     markUprootedClient = nh.serviceClient<urGovernor::MarkUprooted>(markUprootedServiceName);
@@ -528,6 +533,25 @@ int main(int argc, char** argv)
     /* 
      * Main loop for urGovernor
      */
+    auto putArmsUp = [&] {
+        if (::armDown) {
+            if (!actuateArmAngles(restAngle1, restAngle2, restAngle3))
+            {
+                ROS_ERROR("Could not Reset arm positions.");
+                ros::requestShutdown();
+            }
+        }
+    };
+
+    auto pointDist = [] (geometry_msgs::Point p1, geometry_msgs::Point p2) -> float {
+        float dx = p1.x - p2.x;
+        float dy = p1.y - p2.y;
+        float dz = p1.z - p2.z;
+        float dist = sqrt( dx*dx + dy*dy + dz*dz );
+        ROS_DEBUG("Got distance: %f", dist);
+        return dist;
+    };
+
     ros::Rate loopRate(overallRate);
     while (ros::ok())
     {
@@ -538,10 +562,17 @@ int main(int argc, char** argv)
         // IF we do get a new weed
         if (fetchWeedClient.call(fetchWeedSrv))
         {
+            // stay down if the weeds are close
+            if (pointDist(fetchWeedSrv.response.weed.point,
+                        fetchWeedSrvLast.response.weed.point) > stayDownDist)
+                putArmsUp();
+
             doConstantTrackingUproot(fetchWeedSrv);
+            fetchWeedSrvLast = fetchWeedSrv;
         }
         else
         {
+            putArmsUp();
             if (fetchWeedLogs % logFetchWeedInterval == 1)
             {
                 ROS_INFO("Governor -- no weeds are current.");
