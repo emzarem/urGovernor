@@ -35,6 +35,7 @@ const int relativeAngleFlag = false;
 
 float toolOffset;
 float soilOffset;
+float targetYOffset;
 
 // Time to actuate end-effector
 double endEffectorTime = 0;
@@ -83,6 +84,7 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
    
     if (!nodeHandle.getParam("tool_offset", toolOffset)) return false;
     if (!nodeHandle.getParam("soil_offset", soilOffset)) return false;
+    if (!nodeHandle.getParam("target_y_offset", targetYOffset)) return false;
 
     if (!nodeHandle.getParam("serial_output_service", serialServiceWriteName)) return false;
     if (!nodeHandle.getParam("serial_input_service", serialServiceReadName)) return false;
@@ -321,13 +323,14 @@ void doConstantTrackingUproot(urGovernor::FetchWeed &fetchWeedSrv)
         // Get the most recent coordinates
         if (!fetchWeedClient.call(fetchWeedSrv))
         {
-            keepGoing = false;
+            keepGoing = false;  
         }
         else
         {
             //// Process the current coordinates
             float targetX = fetchWeedSrv.response.weed.point.x;
-            float targetY = fetchWeedSrv.response.weed.point.y;
+            // Add offset here to compensate for motion
+            float targetY = fetchWeedSrv.response.weed.point.y + targetYOffset;
             float targetZ = fetchWeedSrv.response.weed.point.z;
             float targetSize = fetchWeedSrv.response.weed.size_cm;
 

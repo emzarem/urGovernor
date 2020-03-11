@@ -11,7 +11,7 @@ motor_accel_deg_s_s: 60
 
 ## TIMING PARAMETERS
 # **MAX** Query rate of the controller to make service requests for new weeds [Hz]
-controller_overall_rate: 5.0
+controller_overall_rate: 10.0
 # If this is true, do continuous update of position
 # Maximum time for arm actuation
 max_actuation_time_override: 1.0
@@ -40,6 +40,8 @@ cartesian_limit_x_max: 30
 cartesian_limit_x_min: -30
 cartesian_limit_y_max: 25
 cartesian_limit_y_min: -40
+
+target_y_offset: -8
 
 # Even if cartesian limits pass, check angle limits
 angle_limit: 90
