@@ -46,5 +46,5 @@ target_y_gain: 0.5
 # Even if cartesian limits pass, check angle limits
 angle_limit: 90
 
-soil_offset: 1.0 # offset of soil (cm)
+soil_offset: 3.0 # offset of soil (cm)
 tool_offset: 9.0 # offset of tool (cm)

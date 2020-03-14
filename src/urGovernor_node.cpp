@@ -9,6 +9,8 @@
 // Srv and msg types
 #include <urGovernor/FetchWeed.h>
 #include <urGovernor/MarkUprooted.h>
+#include <urGovernor/RemoveWeed.h>
+
 #include <urVision/weedDataArray.h>
 #include <urGovernor/SerialWrite.h>
 #include <urGovernor/SerialRead.h>
@@ -18,6 +20,8 @@
 // Parameters to read from configs
 std::string fetchWeedServiceName;
 std::string markUprootedServiceName;
+std::string rmWeedServiceName;
+
 float overallRate;
 
 std::string serialServiceWriteName;
@@ -51,6 +55,7 @@ ros::ServiceClient serialWriteClient;
 ros::ServiceClient serialReadClient;
 ros::ServiceClient fetchWeedClient;
 ros::ServiceClient markUprootedClient;
+ros::ServiceClient rmWeedClient;
 
 const int logFetchWeedInterval = 5;
 
@@ -64,6 +69,8 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
 {
     if (!nodeHandle.getParam("fetch_weed_service", fetchWeedServiceName)) return false;
     if (!nodeHandle.getParam("mark_uprooted_service", markUprootedServiceName)) return false;
+    if (!nodeHandle.getParam("remove_weed_service", rmWeedServiceName)) return false;
+
     if (!nodeHandle.getParam("velocity_publisher", velocityPublisherName)) return false;
    
     if (!nodeHandle.getParam("controller_overall_rate", overallRate)) return false;
@@ -344,6 +351,14 @@ void doConstantTrackingUproot(urGovernor::FetchWeed &fetchWeedSrv)
                 targetY > cartesianLimitYMax ||
                 targetY < cartesianLimitYMin ) 
             {
+                if (targetY < cartesianLimitYMin)
+                {
+                    keepGoing = false;
+                    urGovernor::RemoveWeed rmWeedSrv;
+                    rmWeedSrv.request.tracking_id = currentTrackingID;
+                    rmWeedClient.call(rmWeedSrv);
+                }
+
                 if (fetchWeedSrv.request.request_id != lastIDOutOfRange)
                 {
                     lastIDOutOfRange = fetchWeedSrv.request.request_id;
@@ -372,10 +387,20 @@ void doConstantTrackingUproot(urGovernor::FetchWeed &fetchWeedSrv)
                 int angle1Deg, angle2Deg, angle3Deg;
                 getArmAngles(&angle1Deg, &angle2Deg, &angle3Deg);
 
+                if (angle1Deg < 0)
+                    angle1Deg = 0;
+                if (angle2Deg < 0)
+                    angle2Deg = 0;
+                if (angle3Deg < 0)
+                    angle3Deg = 0;
+
                 // IF calculated angles are out of range
                 if (angle1Deg > angleLimit ||
                     angle2Deg > angleLimit ||
-                    angle3Deg > angleLimit)
+                    angle3Deg > angleLimit ||
+                    angle1Deg < 0 ||
+                    angle2Deg < 0 ||
+                    angle3Deg < 0 )
                 {
                     ROS_INFO("ANGLES OUT OF RANGE of delta arm [(a1,a2,a3)=(%i,%i,%i)]",angle1Deg,angle2Deg,angle3Deg);
                     keepGoing = false;
@@ -392,9 +417,7 @@ void doConstantTrackingUproot(urGovernor::FetchWeed &fetchWeedSrv)
                         abs(angle3Deg - oldAngle3) > maxUpdateAngle 
                         ))
                     {
-                        ROS_ERROR("Angle update is too large... skipping ...",
-                            targetX, targetY, targetZ, 
-                            angle1Deg, angle2Deg, angle3Deg);
+                        ROS_ERROR("Angle update is too large... skipping ...");
                     }
                     else
                     {
@@ -469,12 +492,12 @@ void doConstantTrackingUproot(urGovernor::FetchWeed &fetchWeedSrv)
 
     urGovernor::MarkUprooted markUprootedSrv;
     // weedReached indicates the success of this call
-    markUprootedSrv.request.success = weedReached;
+    markUprootedSrv.request.success = command_sent;
     // Mark this weed as uprooted (or back to ready if not successful)
     markUprootedSrv.request.tracking_id = currentTrackingID;
     if (!markUprootedClient.call(markUprootedSrv))
     {
-        ROS_ERROR("Governor -- Error calling markUprooted Srv (call to tracker_node).");
+        ROS_INFO("Governor -- Error calling markUprooted Srv (call to tracker_node).");
     }
 
     return;    
@@ -514,6 +537,9 @@ int main(int argc, char** argv)
     // Subscribe to second service from tracker
     markUprootedClient = nh.serviceClient<urGovernor::MarkUprooted>(markUprootedServiceName);
     ros::service::waitForService(markUprootedServiceName);
+
+    rmWeedClient = nh.serviceClient<urGovernor::RemoveWeed>(rmWeedServiceName);
+    ros::service::waitForService(rmWeedServiceName);
 
     // Subscribe to velocity updates from tracker
     curYVel = 0;

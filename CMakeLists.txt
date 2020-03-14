@@ -34,6 +34,7 @@ add_service_files(
   SerialRead.srv
   KinematicsTest.srv
   MotorConfigTest.srv
+    RemoveWeed.srv
 )
 
 generate_messages(

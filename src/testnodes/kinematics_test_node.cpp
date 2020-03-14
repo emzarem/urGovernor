@@ -18,7 +18,7 @@ std::string serialServiceReadName;
 double endEffectorTime = 0;
 int serialTimeoutMs;
 float toolOffset = 0;
-float soilOffset = 0;
+float soilOffset = 1.0;
 
 // Connections to Serial interface services
 ros::ServiceClient serialWriteClient;
@@ -34,7 +34,6 @@ bool readGeneralParameters(ros::NodeHandle nodeHandle)
     if (!nodeHandle.getParam("serial_timeout_ms", serialTimeoutMs)) return false;
   
     if (!nodeHandle.getParam("tool_offset", toolOffset)) return false;
-    if (!nodeHandle.getParam("soil_offset", soilOffset)) return false;
 
     return true;
 }
